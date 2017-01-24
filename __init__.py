@@ -137,6 +137,32 @@ def dopcor(val, z):
         wln = np.append(wln, wl_dopcor)
     values[0] = wln
     return values
+    
+
+def dopcorFile(filename, z):
+    output = 'dc_'+filename
+    os.system('cp -i '+filename+' '+ output)
+    f = file(output, 'r+')
+    z = 0.005711
+
+    dopcor=[]
+    for line in f:
+        columns = line.split()
+        wl = float(columns[0])
+        wl_dopcor = (wl) - (wl*z)
+        dopcor.append(wl_dopcor)
+    f.close()
+
+    f0 = file(filename, 'r')
+    f = file(output, 'w')
+    i=0
+    for line in f0:
+        columns = line.split()
+        n_line = line.replace(columns[0], str(dopcor[i]))
+        f.write(n_line)
+        i = i+1
+        
+    print output+' created' 
 
 
 def ylim_def(wl, f, wlmin=4500, wlmax=9500):
