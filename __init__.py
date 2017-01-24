@@ -1,5 +1,5 @@
 """
-13 - Jan - 2017 / H. F. Stevance / fstevance1@sheffield.ac.uk
+24 - Jan - 2017 / H. F. Stevance / fstevance1@sheffield.ac.uk
 
 This is the main module of FUSS. It contains general utility functions, a couple of interactive routines and
 also defines a new class: PolData, to deal with specpol data.
@@ -10,6 +10,7 @@ Functions:
 get_spctr(): Gets flux data from text file.
 get_pol(): Gets pol data from text file.
 dopcor(): Doppler Correction.
+dopcor_file(): Doppler correction from data from a file output into a new file
 ylim_def(): Used to define y limits for plots. Used within FUSS.
 rot_data(): To rotate 2D data.
 norm_ellipse(): Creates random data where the x and y coordinates are described by 2 different normal distributions.
@@ -139,7 +140,7 @@ def dopcor(val, z):
     return values
     
 
-def dopcorFile(filename, z):
+def dopcor_file(filename, z):
     output = 'dc_'+filename
     os.system('cp -i '+filename+' '+ output)
     f = file(output, 'r+')
