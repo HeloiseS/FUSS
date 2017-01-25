@@ -141,6 +141,12 @@ def dopcor(val, z):
     
 
 def dopcor_file(filename, z):
+    """
+    Doppler Correction of data from a file (filename), into another file (output)
+    :param filename: File containing the data to be Doppler corrected, the firsty column MUST contain the wavelength bins
+    :param z: Redshift
+    :return: 
+    """
     output = 'dc_'+filename
     os.system('cp -i '+filename+' '+ output)
     f = file(output, 'r+')
