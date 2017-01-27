@@ -1,2 +1,3 @@
-# FUSS 
-test
+# Welcome!
+
+Documentation soon to come
