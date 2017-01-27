@@ -150,7 +150,6 @@ def dopcor_file(filename, z):
     output = 'dc_'+filename
     os.system('cp -i '+filename+' '+ output)
     f = file(output, 'r+')
-    z = 0.005711
 
     dopcor=[]
     for line in f:
