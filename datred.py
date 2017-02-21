@@ -1070,7 +1070,7 @@ def lin_vband(oray = 'ap2', hwrpafile = 'hwrpangles.txt'):
         p_r = (1/p) * np.sqrt( (q*q_r)**2 + (u*u_r)**2 )
 
         # Interpolation of chromatic zero angle values
-        wl2, thetaz = np.loadtxt('theta_fors2.txt', unpack = True, usecols =(0,1))
+        wl2, thetaz = np.loadtxt(zero_angles, unpack = True, usecols =(0,1))
         theta0 = np.interp(wl, wl2, thetaz)
 
         # Finding Polarisation angle
@@ -1080,7 +1080,6 @@ def lin_vband(oray = 'ap2', hwrpafile = 'hwrpangles.txt'):
         theta_r = (theta_r*180.0) /m.pi
         if theta < 0:
             theta = 180 + theta
-            print 'Angle range change'
         theta_cor = theta - theta0  # Correction of chromatic zero angle
         theta_cor_rad = (theta_cor/180.0)*m.pi
 
@@ -1097,7 +1096,7 @@ def lin_vband(oray = 'ap2', hwrpafile = 'hwrpangles.txt'):
 
     # list of files corresponding to each angle (0, 22.5, 45, 67.5)
     list_0, list_1, list_2, list_3 = np.genfromtxt(hwrpafile, dtype='str', unpack = True, usecols = (0, 1, 2, 3))
-
+    
     o0 = np.array([])  # 0 deg
     e0 = np.array([])
     o1 = np.array([])  # 22.5 deg
@@ -1123,20 +1122,21 @@ def lin_vband(oray = 'ap2', hwrpafile = 'hwrpangles.txt'):
 
     for filename in sorted_files:
 
-        if 'dSC'in filename and 'c_' not in filename:
+        if 'dSC'in filename and 'c_' not in filename and '.fits' not in filename:
             vflux=v_counts(filename, bp_v) # finds counts across Vband given spectrum
             counts = np.sum(vflux[1]) # sum over all bins to get total number of counts in Vband
             counts_r = np.sqrt(np.sum(vflux[1]**2))  # Poisson noise
 
             # very similar to what's done in get_data() in lin_specpol() so refer to that
             if filename[-10:-8] in list_0 or filename[-14:-12] in list_0:
-                if oray in filename:
+                if oray in filename:      
                     if 'err' not in filename:
                         o0=np.append(o0, counts)
                     else:
                         o0_r=np.append(o0_r, counts_r)
-
+                
                 if eray in filename:
+                   # print filename
                     if 'err' not in filename:
                         e0=np.append(e0, counts)
                     else:
@@ -1144,12 +1144,14 @@ def lin_vband(oray = 'ap2', hwrpafile = 'hwrpangles.txt'):
 
             if filename[-10:-8] in list_1 or filename[-14:-12] in list_1:
                 if oray in filename:
+                   # print filename
                     if 'err' not in filename:
                         o1=np.append(o1, counts)
                     else:
                         o1_r=np.append(o1_r, counts_r)
 
                 if eray in filename:
+                   # print filename
                     if 'err' not in filename:
                         e1=np.append(e1, counts)
                     else:
@@ -1157,12 +1159,14 @@ def lin_vband(oray = 'ap2', hwrpafile = 'hwrpangles.txt'):
 
             if filename[-10:-8] in list_2 or filename[-14:-12] in list_2:
                 if oray in filename:
+                   # print filename
                     if 'err' not in filename:
                         o2=np.append(o2, counts)
                     else:
                         o2_r=np.append(o2_r, counts_r)
 
                 if eray in filename:
+                   # print filename
                     if 'err' not in filename:
                         e2=np.append(e2, counts)
                     else:
@@ -1170,12 +1174,14 @@ def lin_vband(oray = 'ap2', hwrpafile = 'hwrpangles.txt'):
 
             if filename[-10:-8] in list_3 or filename[-14:-12] in list_3:
                 if oray in filename:
+                   # print filename
                     if 'err' not in filename:
                         o3=np.append(o3, counts)
                     else:
                         o3_r=np.append(o3_r, counts_r)
 
                 if eray in filename:
+                   # print filename
                     if 'err' not in filename:
                         e3=np.append(e3, counts)
                     else:
@@ -1187,32 +1193,37 @@ def lin_vband(oray = 'ap2', hwrpafile = 'hwrpangles.txt'):
     qr_ls=np.array([])
     u_ls=[]
     ur_ls=np.array([])
+    if len(o0) > 1:
+        for i in range(len(list_0)):
+            qr_to_sum=np.array([])
+            ur_to_sum=np.array([])
+            p, p_r, q, q_r, u, u_r, theta, theta_r = vpol(o0[i], o1[i],o2[i],o3[i],e0[i], e1[i],e2[i],e3[i],o0_r[i],e0_r[i],o1_r[i],e1_r[i],o2_r[i],e2_r[i],o3_r[i],e3_r[i], wl_v)
+            p_ls.append(p)
+            q_ls.append(q)
+            u_ls.append(u)
+            pr_ls=np.append(pr_ls,p)
+            qr_ls=np.append(qr_ls,q)
+            ur_ls=np.append(ur_ls,u)
 
-    for i in range(len(list_0)):
-        qr_to_sum=np.array([])
-        ur_to_sum=np.array([])
-        p, p_r, q, q_r, u, u_r, theta, theta_r = vpol(o0[i], o1[i],o2[i],o3[i],e0[i], e1[i],e2[i],e3[i],o0_r[i],e0_r[i],o1_r[i],e1_r[i],o2_r[i],e2_r[i],o3_r[i],e3_r[i], wl_v)
-        p_ls.append(p)
-        q_ls.append(q)
-        u_ls.append(u)
-        pr_ls=np.append(pr_ls,p)
-        qr_ls=np.append(qr_ls,q)
-        ur_ls=np.append(ur_ls,u)
+            qr_to_sum=np.append(qr_to_sum, 1/((q_r)**2))
+            ur_to_sum=np.append(ur_to_sum, 1/((u_r)**2))
 
-        qr_to_sum=np.append(qr_to_sum, 1/((q_r)**2))
-        ur_to_sum=np.append(ur_to_sum, 1/((u_r)**2))
-
-    qavg=np.average(q_ls, weights=1/(qr_ls**2))
-    uavg=np.average(u_ls, weights=1/(ur_ls**2))
-    qavg_r=np.sqrt(1/np.sum(qr_to_sum))
-    uavg_r=np.sqrt(1/np.sum(ur_to_sum))
-    pavg= np.sqrt(qavg**2 + uavg**2)
-    pavg_r = (1/pavg) * np.sqrt( (qavg*qavg_r)**2 + (uavg*uavg_r)**2 )
-    theta_v = (0.5*m.atan2(uavg,qavg))*180/m.pi
-    if theta_v <0:
-        theta_v = 180+theta_v
-    theta_vr = (0.5* np.sqrt( ( (uavg_r/uavg)**2 + (qavg_r/qavg)**2) * ( 1/(1+(uavg/qavg)**2) )**2 ))*180/m.pi
-
+        qavg=np.average(q_ls, weights=1/(qr_ls**2))
+        uavg=np.average(u_ls, weights=1/(ur_ls**2))
+        qavg_r=np.sqrt(1/np.sum(qr_to_sum))
+        uavg_r=np.sqrt(1/np.sum(ur_to_sum))
+        pavg= np.sqrt(qavg**2 + uavg**2)
+        pavg_r = (1/pavg) * np.sqrt( (qavg*qavg_r)**2 + (uavg*uavg_r)**2 )
+        theta_v = (0.5*m.atan2(uavg,qavg))*180/m.pi
+        if theta_v <0:
+            theta_v = 180+theta_v
+        theta_vr = (0.5* np.sqrt( ( (uavg_r/uavg)**2 + (qavg_r/qavg)**2) * ( 1/(1+(uavg/qavg)**2) )**2 ))*180/m.pi
+        
+    elif len(o0) == 1:
+        pavg, pavg_r, qavg, qavg_r, uavg, uavg_r, theta_v, theta_vr = vpol(o0, o1,o2,o3,e0, e1,e2,e3,o0_r,e0_r,o1_r,e1_r,o2_r,e2_r,o3_r,e3_r, wl_v)
+        if theta_v <0:
+            theta_v = 180+theta_v
+        
     print pavg, pavg_r, qavg, qavg_r, uavg, uavg_r, theta_v, theta_vr
     return pavg, pavg_r, qavg, qavg_r, uavg, uavg_r, theta_v, theta_vr
 
