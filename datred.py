@@ -1,12 +1,12 @@
 """
-15 - Jan - 2017 / H. F. Stevance / fstevance1@sheffield.ac.uk
+02 - March - 2017 / H. F. Stevance / fstevance1@sheffield.ac.uk
 
 datred.py is a sub-module created as part of the FUSS package to help with the data reduction of spectropolarimetric
 data (at the present time only used with FORS2 data)
 
 Pre-requisites:
 -----------------
-os, astropy.io, numpy, math, matplotlib.pyplot, pysynphot
+os, astropy.io, numpy, math, matplotlib.pyplot, pysynphot, scipy.special
 
 Variable:
 ---------
@@ -41,6 +41,7 @@ import numpy as np
 import math as m
 import matplotlib.pyplot as plt
 import pysynphot as S
+from scipy import special as special
 
 # ###### LOCATION OF FILE CONTAINING CHROMATIC ZERO ANGLES ######### #
 zero_angles = '/home/heloise/FUSS/theta_fors2.txt'
@@ -362,13 +363,15 @@ def hwrpangles(sn_name = 'CCSN', zeropol_name = 'Zero_', polstd_name='NGC2024'):
 # ################# SPECPOL. IT'S BIG WITH NESTED FUNCTIONS - MAYBE BAD CODE, BUT IT WORKS ####################### #
 
 
-def lin_specpol(oray='ap2', hwrpafile = 'hwrpangles.txt', e_min_wl = 3775):
+def lin_specpol(oray='ap2', hwrpafile = 'hwrpangles.txt', e_min_wl = 3775, bayesian_pcorr=True):
     """
     Calculates the Stokes parameters and P.A of a data set and writes them out in a text file. Also produces a plot
     showing p, q, u, P.A and Delta epsilon_q and Delta epsilon_u. The plots is not automatically saved.
     :param oray: Which aperture corresponds to the ordinary ray: 'ap1' or 'ap2'. Default is 'ap2'.
     :param hwrpafile: The file telling lin_specpol() which image corresponds to which HWRP angle. Created by hwrpangles(). Default is 'hwrpangles.txt',
     :param e_min_wl: The first wavelength of the range within which Delta epsilons will be calculated. Default is 3775 (ang).
+    :param bayesian_pcorr: Boolean, if True then the debiasing of p will be done using the bayesian method (J. L. Quinn 2012),
+     if False then the step function method will be used (wang et al 1997). Default is True.
     :return:
     """
     if oray=='ap2':
@@ -590,6 +593,7 @@ def lin_specpol(oray='ap2', hwrpafile = 'hwrpangles.txt', e_min_wl = 3775):
             uf = np.append(uf, u_t*100)
             pf = np.append(pf, np.sqrt(q_t**2 + u_t**2)*100)
 
+
         # Now calculating epsilon q and epsilon u and Delta epsilon.
         eq = 0.5*F0 + 0.5*F2
         eu = 0.5*F1 + 0.5*F3
@@ -685,6 +689,40 @@ def lin_specpol(oray='ap2', hwrpafile = 'hwrpangles.txt', e_min_wl = 3775):
         thetaf=np.append(thetaf, thetaf_t)
         thetarf=np.append(thetarf, thetarf_t)
 
+    # #### P Bias Correction #### #
+
+    #  If bayesian_pcorr is False, P will be debiased as in Wang et al. 1997 using a step function
+    if bayesian_pcorr is False:
+        pfinal = np.array([])
+        for ind in range(len(pf)):
+            condition = pf[ind] - prf[ind]
+            if condition > 0:
+                p_0i = pf[ind]-((float(prf[ind]**2))/float(pf[ind]))
+            elif condition < 0:
+                p_0i = pf[ind]
+
+            pfinal = np.append(pfinal, p_0i)
+
+    #  If bayesian_pcorr is True, P will be debiased using the Bayesian method described by J. L. Quinn 2012
+    #  the correceted p is pbar_{0,mean} * sigma. pbar_{0,mean} is given by equation 47 of J. L. Quinn 2012
+    if bayesian_pcorr is True:
+        sigma = (qrf + urf)/2
+        pbar = pf/sigma
+        pfinal = np.array([])
+        for j in range(len(pbar)):
+            p0 = np.arange(0, pbar[j], 0.01)
+
+            rho = np.array([])
+            for i in range(len(p0)):
+                tau = (sigma[j]**2)*2*p0[i]
+                pp0 = pbar[j]*p0[i]
+                RiceDistribution = pbar[j]*np.exp(-((pbar[j]**2 + p0[i]**2)/2) ) * special.iv(0, pp0)
+                rhoi = RiceDistribution * tau
+                rho = np.append(rho, rhoi)
+
+            p0mean = np.average(p0, weights=rho)
+            pfinal = np.append(pfinal, p0mean*sigma[j])  # !!!! need to multiply by sigma to get p0 and not p0/bar.
+
     # ###### CREATING THE TEXT FILE ###### #
     pol_file = raw_input('What do you want to name the polarisation file? ')
     try:
@@ -693,7 +731,7 @@ def lin_specpol(oray='ap2', hwrpafile = 'hwrpangles.txt', e_min_wl = 3775):
          print 'kittens'
     for l in xrange(len(wl)):
         with open(pol_file, 'a') as pol_f:
-            pol_f.write(str(wl[l])+'    '+str(pf[l])+'    '+str(prf[l])+'    '+str(qf[l])+'    '+str(qrf[l])+'    '+str(uf[l])+'    '+str(urf[l])+'    '+str(thetaf[l])+'    '+str(thetarf[l])+'\n')
+            pol_f.write(str(wl[l])+'    '+str(pfinal[l])+'    '+str(prf[l])+'    '+str(qf[l])+'    '+str(qrf[l])+'    '+str(uf[l])+'    '+str(urf[l])+'    '+str(thetaf[l])+'    '+str(thetarf[l])+'\n')
 
     # ###### MAKING PLOTS ########
     # Just to check that everything looks right.
