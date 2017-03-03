@@ -363,7 +363,7 @@ def hwrpangles(sn_name = 'CCSN', zeropol_name = 'Zero_', polstd_name='NGC2024'):
 # ################# SPECPOL. IT'S BIG WITH NESTED FUNCTIONS - MAYBE BAD CODE, BUT IT WORKS ####################### #
 
 
-def lin_specpol(oray='ap2', hwrpafile = 'hwrpangles.txt', e_min_wl = 3775, bayesian_pcorr=True):
+def lin_specpol(oray='ap2', hwrpafile = 'hwrpangles.txt', e_min_wl = 3775, bayesian_pcorr=True, p0_step = 0.01):
     """
     Calculates the Stokes parameters and P.A of a data set and writes them out in a text file. Also produces a plot
     showing p, q, u, P.A and Delta epsilon_q and Delta epsilon_u. The plots is not automatically saved.
@@ -372,6 +372,9 @@ def lin_specpol(oray='ap2', hwrpafile = 'hwrpangles.txt', e_min_wl = 3775, bayes
     :param e_min_wl: The first wavelength of the range within which Delta epsilons will be calculated. Default is 3775 (ang).
     :param bayesian_pcorr: Boolean, if True then the debiasing of p will be done using the bayesian method (J. L. Quinn 2012),
      if False then the step function method will be used (wang et al 1997). Default is True.
+    :param p0_step: Step size (and starting point) of the p0 distribution. if the step is larger that an observed value
+    of p then the code will fail, and you should decrease the step size. Also increases the run time significantly.
+    Default is 0.01
     :return:
     """
     if oray=='ap2':
@@ -693,6 +696,7 @@ def lin_specpol(oray='ap2', hwrpafile = 'hwrpangles.txt', e_min_wl = 3775, bayes
 
     #  If bayesian_pcorr is False, P will be debiased as in Wang et al. 1997 using a step function
     if bayesian_pcorr is False:
+        print "Step Func - p correction"
         pfinal = np.array([])
         for ind in range(len(pf)):
             condition = pf[ind] - prf[ind]
@@ -705,18 +709,19 @@ def lin_specpol(oray='ap2', hwrpafile = 'hwrpangles.txt', e_min_wl = 3775, bayes
 
     #  If bayesian_pcorr is True, P will be debiased using the Bayesian method described by J. L. Quinn 2012
     #  the correceted p is pbar_{0,mean} * sigma. pbar_{0,mean} is given by equation 47 of J. L. Quinn 2012
+
     if bayesian_pcorr is True:
+        print "Bayesian - p correction"
         sigma = (qrf + urf)/2
         pbar = pf/sigma
         pfinal = np.array([])
         for j in range(len(pbar)):
-            p0 = np.arange(0, pbar[j], 0.01)
-
+            p0 = np.arange(p0_step, pbar[j], p0_step)
             rho = np.array([])
             for i in range(len(p0)):
                 tau = (sigma[j]**2)*2*p0[i]
                 pp0 = pbar[j]*p0[i]
-                RiceDistribution = pbar[j]*np.exp(-((pbar[j]**2 + p0[i]**2)/2) ) * special.iv(0, pp0)
+                RiceDistribution = pbar[j]*np.exp(-((pbar[j]**2 + p0[i]**2)/2)) * special.iv(0, pp0)
                 rhoi = RiceDistribution * tau
                 rho = np.append(rho, rhoi)
 
