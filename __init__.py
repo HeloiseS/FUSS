@@ -639,7 +639,7 @@ class PolData(object):
 
     def qu_plt(self, subplot_loc=111 ,  wlmin = None, wlmax = 100000,
                qlim = [-3.0,3.0], ulim = [-3.0,3.0], textloc = [-2.7,-2.7], cisp = 'k',fs = 16,
-               ls = 14, isp = False, wlrest = None, colorbar = True, size_clbar = 0.05, line_color=None,
+               ls = 14, isp = False, wlrest = None, colorbar = True, colorbar_labelsize= 14, size_clbar = 0.05, line_color=None,
                marker='.', lambda_xshift = 1.7, fit=True,
                qlab_vis = True, ulab_vis = True,
                qticks_vis = True, uticks_vis = True):
@@ -657,7 +657,8 @@ class PolData(object):
         :param ls: Label size. Size of the tick numbers on axes. Default = 14.
         :param isp: Booleaan. Whether to plot ISP. Default False.
         :param wlrest: If plotting qu plot of a line, rest wavelength of that line. Otherwise leave default value: None.
-        :param colorbar: Booleon. Default is True. If False the colorbar is not plotted.
+        :param colorbar: Boolean. Default is True. If False the colorbar is not plotted.
+        :param colorbar_labelsize: Label size of the color bar ticks. Default 15.
         :param size_clbar: Modifies the size of the colour bar. Also screws with the plot somehow. Default = 0.05.
         :param line_color: If want a solid colour for the lines between the markers. Default is None and gives lines
         cycling through rainbow colors to match the color of the point they are associated with.
@@ -738,6 +739,8 @@ class PolData(object):
         # and greater than the zorder of the error bars, because otherwise it doesn't look nice.
 
         clbar=plt.colorbar(sc, fraction = size_clbar)  # Plotting to colour map. Need to do that to get a rainbow.
+        clbar.ax.tick_params(labelsize=colorbar_labelsize) 
+        
         if colorbar is False:
             clbar.remove()  # Removing Colormap from plot (but still exists so we can plot rainbows)
         elif colorbar is True:
@@ -778,7 +781,14 @@ class PolData(object):
         # so bring so space to the axes. If ticks are set to be invisible... well make them invisible.
         xticks = qu.xaxis.get_major_ticks()
         yticks = qu.yaxis.get_major_ticks()
-
+        
+        ''' Didn't work to resize my tick labels :(
+        for xtick in xticks:
+            xtick.label1.set_fontsize(ticklabelsize)
+            
+        for ytick in yticks:
+            ytick.label1.set_fontsize(ticklabelsize)
+        '''
         if qticks_vis is False:
             for i in range(0, len(xticks)):
                 xticks[i].label1.set_visible(False)
