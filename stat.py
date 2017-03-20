@@ -1,35 +1,41 @@
 """
-13 -  Jan - 2017 / H. F. Stevance / fstevance1@sheffield.ac.uk
+20 -  March - 2017 / H. F. Stevance / fstevance1@sheffield.ac.uk
 
 stat.py is a sub-module of the FUSS package. It does statistics stuff.
 
 Pre-requisites:
 ---------------
-numpy, math, matplotlib.patches
+numpy, math, matplotlib.patches, scipy.odr
 
 Functions (by sections):
 ------------------------
 For input details check docstrings of individual functions.
 
 # ######### Covariance Matrix ######### #
-cov_el(): cov_el calculates and returns the value of 1 element of the covariance matrix
-cov_mat(): Puts the covariance matrix together and returns it - uses cov_el().
+cov_el(args): cov_el calculates and returns the value of 1 element of the covariance matrix
+cov_mat(args): Puts the covariance matrix together and returns it - uses cov_el().
 
 # ######### Principal Components Analysis ########## #
-pca(): Does PCA, requires cov_mat(). Finds the ellipse of best fit to the data. Returns the axis ratio,
+pca(args): Does PCA, requires cov_mat(). Finds the ellipse of best fit to the data. Returns the axis ratio,
 the angle of the dominant axis and the angle of the orthogonal axis in DEGREES.
 
-draw_ellipse(): Draw an ellipse. Nothing to do with statistics but if you do PCA to find the ellipse of best
+draw_ellipse(args): Draw an ellipse. Nothing to do with statistics but if you do PCA to find the ellipse of best
 fit to your data you'll want to plot an ellipse.
-Returns: ellipse. To use as input in add_artist() [a matplotlib.axes function]
+Returns: ellipse. To use as input in add_artist(args) [a matplotlib.axes function]
 
 # ########## Pearson Correlation ############# #
-pearson(): Returns pearson coefficient. Uses cov_el()
+pearson(args): Returns pearson coefficient. Uses cov_el(args)
+
+# ########## ODR FITS ################### #
+func(args): lienar 2D function
+odr_fit(args): fits 2D data with a line using Orthogonal Distance Regression 
+
 """
 
 import numpy as np
 import math as m
 from matplotlib.patches import Ellipse
+from scipy.odr import ODR, Model, Data, RealData, odr, Output
 
 # ############################# Covariance Matrix #################### #
 
@@ -155,6 +161,37 @@ def pearson(q, u, qr, ur):
     sq = np.sqrt(cov_el(0,0,q, u, qr, ur))
     su = np.sqrt(cov_el(1,1,q, u, qr, ur))
     return cov/(su*sq)
+    
+# ##################################### ODR FITS ########################################### #
+def func(beta, x):
+    """
+    Just a linear function. Used by odr_fit but can use on its own.
+    :param beta: Array [intercept, gradient]
+    :param x: independent variable (generally x)
+    """
+    # Expression of the line that we want to fit to the data
+    y = beta[0] + beta[1] * x
+    return y
+    
+def odr_fit(x, xr, y, yr):
+
+    data = RealData(x, y, xr, yr)
+    model = Model(func)
+    odr = ODR(data, model, [0, 0])
+
+    odr.set_job(fit_type=0)  # fit_type = 0 => explicit ODR.
+    output = odr.run()
+
+    print "Line = a*x + b"
+    print "a = " + str(output.beta[1]) + " +/- " + str(output.sd_beta[1])
+    print "b = " + str(output.beta[0]) + " +/- " + str(output.sd_beta[0]) + "\n"
+
+    grad = output.beta[1]
+    grad_r = output.sd_beta[1]
+    intercept = output.beta[0]
+    intercept_r = output.sd_beta[0]
+    
+    return grad, grad_r, intercept, intercept_r
 
 
 
