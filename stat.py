@@ -45,7 +45,6 @@ def cov_el(j, k, q, u, q_r, u_r):
     cov_el provides value of 1 element of the covariance matrix
     :param j: col number
     :param k: row number
-    :param N: number of bins in the data
     /!\ q, u and their errors need to have the same dimensions
     :param q: q
     :param q_r: error on q
@@ -53,7 +52,7 @@ def cov_el(j, k, q, u, q_r, u_r):
     :param u_r: error on u
     :return: element
     """
-    N=len(q)
+    N = len(q)
     if j == 0:
         xj=q
         dxj=q_r
@@ -163,6 +162,8 @@ def pearson(q, u, qr, ur):
     return cov/(su*sq)
     
 # ##################################### ODR FITS ########################################### #
+
+
 def func(beta, x):
     """
     Just a linear function. Used by odr_fit but can use on its own.
@@ -172,8 +173,17 @@ def func(beta, x):
     # Expression of the line that we want to fit to the data
     y = beta[0] + beta[1] * x
     return y
-    
+
+
 def odr_fit(x, xr, y, yr):
+    """
+    Performs an ODR fit on the data provided.
+    :param x:
+    :param xr:
+    :param y:
+    :param yr:
+    :return:
+    """
 
     data = RealData(x, y, xr, yr)
     model = Model(func)

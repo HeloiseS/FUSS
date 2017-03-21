@@ -20,7 +20,7 @@ class DataRange():
         - x : x coordinates of the data
         - y : y coordinates of the data
         - yr : errors on y
-        - start = Beaning of the range (x diension)
+        - start = Beaning of the range (x dimension)
         - end = End of the range (x dimension)
     NOTE: didn't put in a attribute for errors on  as for my spectra I usually don't have any.
 
