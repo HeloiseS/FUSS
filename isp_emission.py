@@ -4,14 +4,16 @@ import FUSS as F
 import interactive_graph as ig
 from FUSS import stat as Fstat
 
-
-def isp_emline(filename_pol, filename_spctr, wlmin=4400):
+def isp_emline(filename_pol, filename_spctr, wlmin=4400, cont2ranges = False):
     """
     This function finds isp from one emission line. Requires interactive_range.def_ranges()
     :param filename_pol: name of the file containing the polarisation data
     :param filename_spctr: name of the file containing the flux data
     :param wlmin: minimum wavelength cutoff for the data imported from the polarisation and flux spectrum files.
     Default is 4400.
+    :param cont2ranges: Boolean. If the continuum is the be defined by 2 ranges of values on either side of the line,
+    set to True. If False, then the user should indicate the continuum by just two points on either side of the line.
+    Default is False.
     :return:
     """
     # importing the data
@@ -20,20 +22,21 @@ def isp_emline(filename_pol, filename_spctr, wlmin=4400):
 
     scale = np.median(flux[1])  # scale factor used for plotting later
 
-    ###################################################################
-    # Defining continuum (should need only 2 ranges so only considers #
-    # the first 2 ranges defined with def_range)                      #
-    ###################################################################
-
     # Need to define figure and plot the spectrum before calling ig.def_ranges()
-    # not calling plot.show() though because that is done in ig.def_ranges()
+    # not calling plot.show() though because that is done in igr.def_ranges()
     fig = plt.figure()
     ax = fig.add_subplot(111)
     ax.plot(flux[0], flux[1])
 
     cont_ranges = ig.def_ranges(fig, flux, err=True)
-    cont_ranges[0].average()
-    cont_ranges[1].average()
+
+    if cont2ranges is True:
+        ###################################################################
+        # Defining continuum (should need only 2 ranges so only considers #
+        # the first 2 ranges defined with def_range)                      #
+        ###################################################################
+        cont_ranges[0].average()
+        cont_ranges[1].average()
 
     ################################################################
     # Defining emission line region. Only 1 range defined by user  #
@@ -43,10 +46,16 @@ def isp_emline(filename_pol, filename_spctr, wlmin=4400):
     fig = plt.figure()
     ax = fig.add_subplot(111)
     ax.plot(flux[0], flux[1])  # plotting flux spectrum
-    ax.plot(cont_ranges[0].x, cont_ranges[0].y, lw=2)  # plotting the first range
-    ax.plot(cont_ranges[1].x, cont_ranges[1].y, lw=2)  # plotting the second range
-    # plotting the line defining continuum (according to the 2 ranges picked)
-    ax.plot([cont_ranges[0].middle,cont_ranges[1].middle], [cont_ranges[0].avg,cont_ranges[1].avg], lw=2, ls='--')
+
+    if cont2ranges is True:
+        ax.plot(cont_ranges[0].x, cont_ranges[0].y, lw=2)  # plotting the first range
+        ax.plot(cont_ranges[1].x, cont_ranges[1].y, lw=2)  # plotting the second range
+        # plotting the line defining continuum (according to the 2 ranges picked)
+        ax.plot([cont_ranges[0].middle,cont_ranges[1].middle], [cont_ranges[0].avg,cont_ranges[1].avg], lw=2, ls='--')
+    else:
+        ax.scatter([cont_ranges[0].x[0],cont_ranges[0].x[-1]], [cont_ranges[0].y[0], cont_ranges[0].y[-1] ], marker='o', c='r')  # plotting the first range
+        ax.plot([cont_ranges[0].x[0],cont_ranges[0].x[-1]], [cont_ranges[0].y[0], cont_ranges[0].y[-1] ], marker='o', c='r')  # plotting the first range
+
     # plotting q and u just to see depolarisation regions. Scaled to fit on graph
     ax.plot(pol.wlp, pol.q*scale)
     ax.plot(pol.wlp, pol.u*scale)
@@ -56,8 +65,12 @@ def isp_emline(filename_pol, filename_spctr, wlmin=4400):
     start=emission_range[0].start
     end=emission_range[0].end
 
-    # To find the continuum flux we just interpolate between the averages of the first and second continuum ranges
-    Fcont = np.interp(emission_range[0].x, [cont_ranges[0].middle, cont_ranges[1].middle], [cont_ranges[0].avg,cont_ranges[1].avg])
+    if cont2ranges is True:
+        # To find the continuum flux we just interpolate between the averages of the first and second continuum ranges
+        Fcont = np.interp(emission_range[0].x, [cont_ranges[0].middle, cont_ranges[1].middle], [cont_ranges[0].avg,cont_ranges[1].avg])
+    else:
+        Fcont = np.interp(emission_range[0].x, [cont_ranges[0].x[0],cont_ranges[0].x[-1]], [cont_ranges[0].y[0], cont_ranges[0].y[-1]])
+
     # Total flux of emission line is just array of all values of flux at each wavelength bin
     Ftot = emission_range[0].y
     Ftot_r = emission_range[0].yr
@@ -101,14 +114,23 @@ def isp_emline(filename_pol, filename_spctr, wlmin=4400):
     pcont_r = (1/pcont)*np.sqrt((qcont*qcont_r)**2 + (ucont*ucont_r)**2 )
     pol_cont = [pcont, pcont_r, qcont, qcont_r, ucont, ucont_r]
 
-    print "-------------------------- ISP from emission line ----------------------"
-    print "For the emission line in range {0:.0f} - {1:.0f} Ang".format(start, end)
-    print "With continuum defined by the ranges:"
-    print "{0:.0f} - {1:.0f} | center: {2:.1f}".format(min(cont_ranges[0].x), max(cont_ranges[0].x), cont_ranges[0].middle)
-    print "{0:.0f} - {1:.0f} | center: {2:.1f}".format(min(cont_ranges[1].x), max(cont_ranges[1].x), cont_ranges[1].middle)
-    print "\nWe find:"
-    print "ISP: p = {0:.3f} +/- {1:.3f} | q = {2:.3f} +/- {3:.3f} | u = {4:.3f} +/- {5:.3f}" .format(pisp, pisp_r,qisp, qisp_r,uisp,uisp_r)
-    print "Continuum: p = {0:.3f} +/- {1:.3f} | q = {2:.3f} +/- {3:.3f} | u = {4:.3f} +/- {5:.3f}" .format(pcont, pcont_r,qcont, qcont_r,ucont,ucont_r)
+    if cont2ranges is True:
+        print "-------------------------- ISP from emission line ----------------------"
+        print "For the emission line in range {0:.0f} - {1:.0f} Ang".format(start, end)
+        print "With continuum defined by the ranges:"
+        print "{0:.0f} - {1:.0f} | center: {2:.1f}".format(min(cont_ranges[0].x), max(cont_ranges[0].x), cont_ranges[0].middle)
+        print "{0:.0f} - {1:.0f} | center: {2:.1f}".format(min(cont_ranges[1].x), max(cont_ranges[1].x), cont_ranges[1].middle)
+        print "\nWe find:"
+        print "ISP: p = {0:.3f} +/- {1:.3f} | q = {2:.3f} +/- {3:.3f} | u = {4:.3f} +/- {5:.3f}" .format(pisp, pisp_r,qisp, qisp_r,uisp,uisp_r)
+        print "Continuum: p = {0:.3f} +/- {1:.3f} | q = {2:.3f} +/- {3:.3f} | u = {4:.3f} +/- {5:.3f}" .format(pcont, pcont_r,qcont, qcont_r,ucont,ucont_r)
+    else:
+        print "-------------------------- ISP from emission line ----------------------"
+        print "For the emission line in range {0:.0f} - {1:.0f} Ang".format(start, end)
+        print "With continuum defined by the ranges:"
+        print "{0:.0f} - {1:.0f}".format(cont_ranges[0].x[0], cont_ranges[0].x[-1])
+        print "\nWe find:"
+        print "ISP: p = {0:.3f} +/- {1:.3f} | q = {2:.3f} +/- {3:.3f} | u = {4:.3f} +/- {5:.3f}" .format(pisp, pisp_r,qisp, qisp_r,uisp,uisp_r)
+        print "Continuum: p = {0:.3f} +/- {1:.3f} | q = {2:.3f} +/- {3:.3f} | u = {4:.3f} +/- {5:.3f}" .format(pcont, pcont_r,qcont, qcont_r,ucont,ucont_r)
 
     return pol_isp, pol_cont
     
