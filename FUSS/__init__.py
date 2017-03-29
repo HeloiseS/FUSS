@@ -66,6 +66,7 @@ from pylab import *
 import os
 from astropy.io import fits
 import datetime as dt
+from FUSS import isp as isp
 
 
 # ################## FUNCTIONS ###################### FUNCTIONS #################### FUNCTIONS ################# #
@@ -341,46 +342,6 @@ def vel():
         cont = raw_input('Continue?(y/n): ')
 
 
-# The following may be unnecessary also a method in PolData. Will be removed if obsolete ############# #
-def rmv_isp(wl, q0, q0_r, u0, u0_r, qisp, qisp_r, uisp, uisp_r):
-    """
-    Removes the ISP.
-    :param wl: Array containing the wavelength bins. Not required for ISP removal but returned along with the corrected
-    values.
-    :param q0: Array of observed q in each wavelength bin
-    :param q0_r: Array of errors on observed q in each wavelength bin
-    :param u0: Array of observed u in each wavelength bin
-    :param u0_r: Array of errors on observed q in each wavelength bin
-    :param qisp: Value of q ISP
-    :param qisp_r: Value of error on q ISP
-    :param uisp: Value of u ISP
-    :param uisp_r: Value of error on u ISP
-    :return: Arrays of observed ISP removed q and u and associated errors.
-    """
-
-    q = q0 - qisp
-    u = u0 - uisp
-    q_r = np.sqrt(q0_r ** 2 + qisp_r ** 2)
-    u_r = np.sqrt(u0_r ** 2 + uisp_r ** 2)
-
-    p = np.sqrt(q * q + u * u)
-    p_r = (1 / p) * np.sqrt((q * q_r) ** 2 + (u * u_r) ** 2)
-
-    theta = np.array([])
-    theta_r = np.array([])
-    for i in range(len(q)):
-        thetai = 0.5 * m.atan2(u[i], q[i])
-        thetai_r = 0.5 * np.sqrt(((u_r[i] / u[i]) ** 2 + (q_r[i] / q[i]) ** 2) * (1 / (1 + (u[i] / q[i]) ** 2)) ** 2)
-        thetai = (thetai * 180.0) / m.pi
-        thetai_r = (thetai_r * 180.0) / m.pi
-        if thetai < 0:
-            thetai = 180 + thetai
-
-        theta = np.append(theta, thetai)
-        theta_r = np.append(theta_r, thetai_r)
-    return wl, p, p_r, q, q_r, u, u_r, theta, theta_r
-
-
 #  #################################################################################  #
 #  ##############  CLASSE ############## POLDATA ########### CLASSE  ###############  #
 #  #################################################################################  #
@@ -423,7 +384,7 @@ class PolData(object):
 
     """
 
-    def __init__(self, name, filename, wlmin=None, wlmax=1000000):
+    def __init__(self, name, poldata, wlmin=None, wlmax=1000000):
         """
         Initialises PolData
         :param name: Name of the data set (e.g ep1)
@@ -433,8 +394,10 @@ class PolData(object):
         :param wlmax: max wavelength cut off
         :return:
         """
-
-        pol0 = get_pol(filename, wlmin=wlmin, wlmax=wlmax)
+        if type(poldata) is str:
+            pol0 = get_pol(poldata, wlmin=wlmin, wlmax=wlmax)
+        else:
+            pol0 = poldata
 
         self.name = name
         self.wlp = pol0[0]
@@ -563,35 +526,40 @@ class PolData(object):
               + "\n P.A isp = " + str(self.aisp) + " +/- " + str(self.aispr)
         return self.qisp, self.qispr, self.uisp, self.uispr
 
-    def add_isp(self, qisp, qispr, uisp, uispr):
+    def add_isp(self, constisp_params = None, linearisp_params = None):
         """
-        Add ISP attributes to PolData. Initialises qisp, uisp and associated errors for PolData.
-        :param qisp:
-        :param qispr:
-        :param uisp:
-        :param uispr:
-        :return:
+        Adds parameters of isp to the data.
+        :param constisp_params: If the isp is constant give the stokes aprameters of the isp here in a list:
+        [qisp, qisp error, uisp , uisp error]
+        :param linearisp_params: If the isp changes linearly with wavelength, give the parameters fo the linear
+        dependencies fo q and u here. If qisp = grad_q * lambda + intercept_q (and similar equation for u) write:
+        linearisp_params = [[grad_q, grad_q error],[intercept_q, intercept_q error],
+        [grad_u, grad_u error],[intercept_u, intercept_u error]]
+        :return: nothing
         """
 
-        # Values of p, q, u, a and their error for ISP
-        self.qisp = qisp
-        self.qispr = qispr
-        self.uisp = uisp
-        self.uispr = uispr
-        self.pisp = np.sqrt(self.qisp ** 2 + self.uisp ** 2)
-        self.pispr = (1 / self.pisp) * np.sqrt((self.qisp * self.qispr) ** 2 + (self.uisp * self.uispr) ** 2)
-        self.aisp = (0.5 * m.atan2(self.uisp, self.qisp)) * 180.0 / m.pi
-        self.aispr = 0.5 * np.sqrt(((self.uispr / self.uisp) ** 2 + (self.qispr / self.qisp) ** 2) * (
-        1 / (1 + (self.uisp / self.qisp) ** 2)) ** 2)
-        self.aispr = (self.aispr * 180.0) / m.pi
-        if self.aisp < 0:
-            self.aisp = 180 + self.aisp  # Making sure P.A range is 0-180 deg
+        if linearisp_params is None:
+            self.qisp, self.qispr, self.uisp, self.uispr = constisp_params
+            # Values of p, q, u, a and their error for ISP
+            self.pisp = np.sqrt(self.qisp ** 2 + self.uisp ** 2)
+            self.pispr = (1 / self.pisp) * np.sqrt((self.qisp * self.qispr) ** 2 + (self.uisp * self.uispr) ** 2)
+            self.aisp = (0.5 * m.atan2(self.uisp, self.qisp)) * 180.0 / m.pi
+            self.aispr = 0.5 * np.sqrt(((self.uispr / self.uisp) ** 2 + (self.qispr / self.qisp) ** 2) * (
+            1 / (1 + (self.uisp / self.qisp) ** 2)) ** 2)
+            self.aispr = (self.aispr * 180.0) / m.pi
+            if self.aisp < 0:
+                self.aisp = 180 + self.aisp  # Making sure P.A range is 0-180 deg
 
-        print " ==== PolData - instance: " + self.name + " ===="
-        print "ISP Added: \n qisp = " + str(self.qisp) + " +/- " + str(self.qispr) \
-              + "\n usip = " + str(self.uisp) + " +/- " + str(self.uispr) \
-              + "\n pisp = " + str(self.pisp) + " +/- " + str(self.pispr) \
-              + "\n P.A isp = " + str(self.aisp) + " +/- " + str(self.aispr) + "\n"
+            print " ==== PolData - instance: " + self.name + " ===="
+            print "ISP Added: \n qisp = " + str(self.qisp) + " +/- " + str(self.qispr) \
+                  + "\n usip = " + str(self.uisp) + " +/- " + str(self.uispr) \
+                  + "\n pisp = " + str(self.pisp) + " +/- " + str(self.pispr) \
+                  + "\n P.A isp = " + str(self.aisp) + " +/- " + str(self.aispr) + "\n"
+            self.gradq = None # this will be used as a condidtion for the method of isp removal in rmv_isp
+        elif constisp_params is None:
+            self.gradq, self.constq, self.gradu, self.constu = linearisp_params
+            self.qisp = None # this will be used as a condidtion for the method of isp removal in rmv_isp
+        return
 
     def rmv_isp(self):
         """
@@ -607,30 +575,54 @@ class PolData(object):
         self.u0 = self.u
         self.q0r = self.qr
         self.u0r = self.ur
+        # Storing original degree of polarisation and it's error in new variable and updating p and pr
+        self.p0 = self.p
+        self.p0r = self.pr
+        # Same as before but for the P.A
+        self.a0 = self.a
+        self.a0r = self.ar
 
+        if self.qisp is None:
+            new_stokes, __ = isp.linear_isp(self.wlp, self.gradq, self.constq,
+                                       self.gradu, self.constu,
+                                       self.q, self.qr,
+                                       self.u, self.ur)
+
+        elif self.gradq is None:
+            new_stokes = isp.const_isp(self.wlp, self.qisp, self.qispr,
+                                       self.uisp, self.uispr,
+                                       self.q, self.qr,
+                                       self.u, self.ur)
+
+        self.p = new_stokes[1]
+        self.pr =new_stokes[2]
+        self.q = new_stokes[3] # new_stokes[0] is wavelength bins
+        self.qr = new_stokes[4]
+        self.u = new_stokes[5]
+        self.ur = new_stokes[6]
+        self.a = new_stokes[7]
+        self.ar = new_stokes[8]
+
+        '''
         # Removing ISP and updating q, u, qr and ur
         self.q = self.q0 - self.qisp
         self.u = self.u0 - self.uisp
         self.qr = np.sqrt(self.q0r ** 2 + self.qispr ** 2)
         self.ur = np.sqrt(self.u0r ** 2 + self.uispr ** 2)
 
-        # Storing original degree of polarisation and it's error in new variable and updating p and pr
-        self.p0 = self.p
-        self.p0r = self.pr
 
-        self.p = np.sqrt(self.q ** 2 + self.u0 ** 2)
+
+        self.p = np.sqrt(self.q ** 2 + self.u ** 2)
         self.pr = (1 / self.p) * np.sqrt((self.q * self.qr) ** 2 + (self.u * self.ur) ** 2)
 
-        # Same as before but for the P.A
-        self.a0 = self.a
-        self.a0r = self.ar
+
 
         self.a = np.array([])
         self.ar = np.array([])
         for i in range(len(self.q0)):
             thetai = 0.5 * m.atan2(self.u[i], self.q[i])
             thetai_r = 0.5 * np.sqrt(((self.ur[i] / self.u[i]) ** 2 + (self.qr[i] / self.q[i]) ** 2) * (
-            1 / (1 + (self.u0[i] / self.q[i]) ** 2)) ** 2)
+            1 / (1 + (self.u[i] / self.q[i]) ** 2)) ** 2)
             thetai = (thetai * 180.0) / m.pi
             thetai_r = (thetai_r * 180.0) / m.pi
             if thetai < 0:
@@ -641,7 +633,7 @@ class PolData(object):
 
         print " ==== PolData - instance: " + self.name + " ===="
         print "ISP removed \n"
-
+        '''
     def qu_plt(self, subplot_loc=111, wlmin=None, wlmax=100000,
                qlim=[-3.0, 3.0], ulim=[-3.0, 3.0], textloc=[-2.7, -2.7], cisp='k', fs=16,
                ls=14, isp=False, wlrest=None, colorbar=True, colorbar_labelsize=14, size_clbar=0.05, line_color=None,

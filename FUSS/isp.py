@@ -16,7 +16,7 @@ def from_emline(filename_pol, filename_spctr, wlmin=4400, cont2ranges = False):
     :param cont2ranges: Boolean. If the continuum is the be defined by 2 ranges of values on either side of the line,
     set to True. If False, then the user should indicate the continuum by just two points on either side of the line.
     Default is False.
-    :return:
+    :return: pol_isp, pol_cont
     """
     # importing the data
     flux = F.get_spctr(filename_spctr, wlmin=wlmin, scale = False, err = True)
@@ -115,7 +115,9 @@ def from_emline(filename_pol, filename_spctr, wlmin=4400, cont2ranges = False):
     pcont = np.sqrt(qcont**2 + ucont**2)
     pcont_r = (1/pcont)*np.sqrt((qcont*qcont_r)**2 + (ucont*ucont_r)**2 )
     pol_cont = [pcont, pcont_r, qcont, qcont_r, ucont, ucont_r]
-
+    
+    
+    emline_wl = [(start+end)/2, end-((start+end)/2)]
     if cont2ranges is True:
         print "-------------------------- ISP from emission line ----------------------"
         print "For the emission line in range {0:.0f} - {1:.0f} Ang".format(start, end)
@@ -128,13 +130,13 @@ def from_emline(filename_pol, filename_spctr, wlmin=4400, cont2ranges = False):
     else:
         print "-------------------------- ISP from emission line ----------------------"
         print "For the emission line in range {0:.0f} - {1:.0f} Ang".format(start, end)
-        print "With continuum defined by the ranges:"
-        print "{0:.0f} - {1:.0f}".format(cont_ranges[0].x[0], cont_ranges[0].x[-1])
+        print "With continuum defined by the points at:"
+        print "{0:.0f} and {1:.0f}".format(cont_ranges[0].x[0], cont_ranges[0].x[-1])
         print "\nWe find:"
         print "ISP: p = {0:.3f} +/- {1:.3f} | q = {2:.3f} +/- {3:.3f} | u = {4:.3f} +/- {5:.3f}" .format(pisp, pisp_r,qisp, qisp_r,uisp,uisp_r)
         print "Continuum: p = {0:.3f} +/- {1:.3f} | q = {2:.3f} +/- {3:.3f} | u = {4:.3f} +/- {5:.3f}" .format(pcont, pcont_r,qcont, qcont_r,ucont,ucont_r)
 
-    return pol_isp, pol_cont
+    return emline_wl, pol_isp, pol_cont
 
 
 def from_range(filename_pol, wlmin=None, wlmax=None):
@@ -190,8 +192,108 @@ def from_range(filename_pol, wlmin=None, wlmax=None):
 
     return pisp, pispr, qisp, qispr, uisp, uispr
 
-#pol_isp, pol_cont = from_emline('dc_11hs_ep1.pol','dc_11hs_ep1.flx' )
+def linear_isp(wlp, gradq, constq, gradu, constu, q=None, qr=None, u=None, ur=None):
+    """
+    Calculates a linear and can also remove it from polarisation data if provided
+    :param wlp: 1D Array of wavelength bins of final desired isp (often the wavelength bisn fo your pol data)
+    :param gradq: [gradient of q isp, error on gradient]
+    :param constq: [intercept of q isp, error on intercept]
+    :param gradu: [gradient of u isp, error on gradient]
+    :param constu: [intercept of u isp, error on intercept]
+    :param q: Stokes q of pol data you want to correct for isp. Default is None.
+    :param qr: Err on Stokes q of pol data you want to correct for isp. Default is None.
+    :param u: Stokes u of pol data you want to correct for isp. Default is None.
+    :param ur: Err on Stokes u of pol data you want to correct for isp. Default is None.
+    :return: If polarisation data not provided, only returns the array isp = [qisp, qisp_r, uisp, uisp_r],
+    if data provided returns new_stokes = [wlp, pisp, pispr error, qisp, qisp error, uisp, uisp error,
+    pol angle, pol angle error], and then isp = [qisp, qisp_r, uisp, uisp_r].
+    """
 
+    qisp = np.array([])
+    qisp_r = np.array([])
+    uisp = np.array([])
+    uisp_r = np.array([])
 
+    newq = np.array([])
+    newqr = np.array([])
+    newu = np.array([])
+    newur = np.array([])
 
+    for wl in wlp:
+        qisp = np.append(qisp, gradq[0]*wl+constq[0])
+        uisp = np.append(uisp, gradu[0]*wl+constu[0])
+        qisp_r = np.append(qisp_r, np.sqrt((gradq[1]*wl)**2 + constq[1]**2))
+        uisp_r = np.append(uisp_r, np.sqrt((gradu[1]*wl)**2 + constu[1]**2))
 
+    isp = [qisp, qisp_r, uisp, uisp_r]
+
+    if q is None:
+        return isp
+
+    for i in range(len(wlp)):
+        newq = np.append(newq, q[i]-qisp[i])
+        newqr = np.append(newqr, np.sqrt(qr[i]**2+qisp_r[i]**2))
+        newu = np.append(newu, u[i]-uisp[i])
+        newur = np.append(newur, np.sqrt(ur[i]**2+uisp_r[i]**2))
+
+    newp = np.sqrt(newq**2 + newu**2)
+    newpr = (1 / newp) * np.sqrt((newq * newqr) ** 2 + (newu * newur) ** 2)
+
+    newa = np.array([])
+    newar = np.array([])
+    for i in range(len(wlp)):
+        thetai = 0.5 * m.atan2(newu[i], newq[i])
+        thetai_r = 0.5 * np.sqrt(((newur[i] / newu[i]) ** 2 + (newqr[i] / newq[i]) ** 2) * (
+        1 / (1 + (newu[i] / newq[i]) ** 2)) ** 2)
+        thetai = (thetai * 180.0) / m.pi
+        thetai_r = (thetai_r * 180.0) / m.pi
+        if thetai < 0:
+            thetai = 180 + thetai
+
+        newa = np.append(newa, thetai)
+        newar = np.append(newar, thetai_r)
+
+    new_stokes = [wlp, newp, newpr, newq, newqr, newu, newur, newa, newar]
+
+    return new_stokes, isp
+
+def const_isp(wlp, qisp, qispr, uisp, uispr, q, qr, u, ur):
+    """
+    Removes single valued (constant with wavelength) isp from data
+    :param wlp: wavelength bins fo the data
+    :param qisp: stokes params of the isp
+    :param qispr:
+    :param uisp:
+    :param uispr:
+    :param q: stokes params fo the data
+    :param qr:
+    :param u:
+    :param ur:
+    :return: new_stokes = [wlp, pisp, pispr error, qisp, qisp error, uisp, uisp error,
+    pol angle, pol angle error]
+    """
+    newq = q - qisp
+    newu = u - uisp
+    newqr = np.sqrt(qr ** 2 + qispr ** 2)
+    newur = np.sqrt(ur ** 2 + uispr ** 2)
+
+    newp = np.sqrt(newq ** 2 + newu ** 2)
+    newpr = (1 / newp) * np.sqrt((newq * newqr) ** 2 + (newu * newur) ** 2)
+
+    newa = np.array([])
+    newar = np.array([])
+    for i in range(len(wlp)):
+        thetai = 0.5 * m.atan2(newu[i], newq[i])
+        thetai_r = 0.5 * np.sqrt(((newur[i] / newu[i]) ** 2 + (newqr[i] / newq[i]) ** 2) * (
+        1 / (1 + (newu[i] / newq[i]) ** 2)) ** 2)
+        thetai = (thetai * 180.0) / m.pi
+        thetai_r = (thetai_r * 180.0) / m.pi
+        if thetai < 0:
+            thetai = 180 + thetai
+
+        newa = np.append(newa, thetai)
+        newar = np.append(newar, thetai_r)
+
+    new_stokes =[wlp, newp, newpr, newq, newqr, newu, newur, newa, newar]
+
+    return new_stokes
