@@ -1,5 +1,5 @@
 """
-24 - Jan - 2017 / H. F. Stevance / fstevance1@sheffield.ac.uk
+31 - March - 2017 / H. F. Stevance / fstevance1@sheffield.ac.uk
 
 This is the main module of FUSS. It contains general utility functions, a couple of interactive routines and
 also defines a new class: PolData, to deal with specpol data.
@@ -47,7 +47,7 @@ Attributes:
     - Updates p, pr, q, ..., ar with ISP corrected values.
 
 Methods:
-    - add_flux_dat()
+    - add_flux_data()
     - flu_n_pol()
     - find_isp()
     - add_isp()
@@ -529,10 +529,10 @@ class PolData(object):
     def add_isp(self, constisp_params = None, linearisp_params = None):
         """
         Adds parameters of isp to the data.
-        :param constisp_params: If the isp is constant give the stokes aprameters of the isp here in a list:
+        :param constisp_params: If the isp is constant give the stokes parameters of the isp here in a list:
         [qisp, qisp error, uisp , uisp error]
-        :param linearisp_params: If the isp changes linearly with wavelength, give the parameters fo the linear
-        dependencies fo q and u here. If qisp = grad_q * lambda + intercept_q (and similar equation for u) write:
+        :param linearisp_params: If the isp changes linearly with wavelength, give the parameters of the linear
+        dependencies of q and u here. If qisp = grad_q * lambda + intercept_q (and similar equation for u) write:
         linearisp_params = [[grad_q, grad_q error],[intercept_q, intercept_q error],
         [grad_u, grad_u error],[intercept_u, intercept_u error]]
         :return: nothing
@@ -603,37 +603,6 @@ class PolData(object):
         self.a = new_stokes[7]
         self.ar = new_stokes[8]
 
-        '''
-        # Removing ISP and updating q, u, qr and ur
-        self.q = self.q0 - self.qisp
-        self.u = self.u0 - self.uisp
-        self.qr = np.sqrt(self.q0r ** 2 + self.qispr ** 2)
-        self.ur = np.sqrt(self.u0r ** 2 + self.uispr ** 2)
-
-
-
-        self.p = np.sqrt(self.q ** 2 + self.u ** 2)
-        self.pr = (1 / self.p) * np.sqrt((self.q * self.qr) ** 2 + (self.u * self.ur) ** 2)
-
-
-
-        self.a = np.array([])
-        self.ar = np.array([])
-        for i in range(len(self.q0)):
-            thetai = 0.5 * m.atan2(self.u[i], self.q[i])
-            thetai_r = 0.5 * np.sqrt(((self.ur[i] / self.u[i]) ** 2 + (self.qr[i] / self.q[i]) ** 2) * (
-            1 / (1 + (self.u[i] / self.q[i]) ** 2)) ** 2)
-            thetai = (thetai * 180.0) / m.pi
-            thetai_r = (thetai_r * 180.0) / m.pi
-            if thetai < 0:
-                thetai = 180 + thetai
-
-            self.a = np.append(self.a, thetai)
-            self.ar = np.append(self.ar, thetai_r)
-
-        print " ==== PolData - instance: " + self.name + " ===="
-        print "ISP removed \n"
-        '''
     def qu_plt(self, subplot_loc=111, wlmin=None, wlmax=100000,
                qlim=[-3.0, 3.0], ulim=[-3.0, 3.0], textloc=[-2.7, -2.7], cisp='k', fs=16,
                ls=14, isp=False, wlrest=None, colorbar=True, colorbar_labelsize=14, size_clbar=0.05, line_color=None,
