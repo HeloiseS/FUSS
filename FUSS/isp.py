@@ -192,10 +192,11 @@ def from_range(filename_pol, wlmin=None, wlmax=None):
 
     return pisp, pispr, qisp, qispr, uisp, uispr
 
+
 def linear_isp(wlp, gradq, constq, gradu, constu, q=None, qr=None, u=None, ur=None):
     """
     Calculates a linear and can also remove it from polarisation data if provided
-    :param wlp: 1D Array of wavelength bins of final desired isp (often the wavelength bisn fo your pol data)
+    :param wlp: 1D Array of wavelength bins of final desired isp (often the wavelength bins fo your pol data)
     :param gradq: [gradient of q isp, error on gradient]
     :param constq: [intercept of q isp, error on intercept]
     :param gradu: [gradient of u isp, error on gradient]
@@ -257,20 +258,21 @@ def linear_isp(wlp, gradq, constq, gradu, constu, q=None, qr=None, u=None, ur=No
 
     return new_stokes, isp
 
+
 def const_isp(wlp, qisp, qispr, uisp, uispr, q, qr, u, ur):
     """
     Removes single valued (constant with wavelength) isp from data
-    :param wlp: wavelength bins fo the data
+    :param wlp: wavelength bins of the data
     :param qisp: stokes params of the isp
     :param qispr:
     :param uisp:
     :param uispr:
-    :param q: stokes params fo the data
+    :param q: stokes params of the data
     :param qr:
     :param u:
     :param ur:
-    :return: new_stokes = [wlp, pisp, pispr error, qisp, qisp error, uisp, uisp error,
-    pol angle, pol angle error]
+    :return: new_stokes = [wlp, new p, new p error, new q, new q error, new u, new u error,
+    new pol angle, new pol angle error]
     """
     newq = q - qisp
     newu = u - uisp
