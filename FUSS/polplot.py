@@ -170,15 +170,14 @@ def axis(fig, loc=111, num_ticks=1, phot_vel=None, vel_lim=[0, 30000], ang_grid 
         aux_ax.plot(y,vaxis, color='0.35', linestyle=':', linewidth=1)
 
     if phot_vel != None:
-        phot = data(0, 180, phot_vel)
-        aux_ax.plot(phot[0], phot[1], lw=3, ls =':', c='orangered')
+        phot = datum(0, 180, phot_vel)
+        aux_ax.plot(phot[0], phot[1], lw=3, c='k')
     
     return aux_ax
-    
-    
-def data(pa_start, pa_end, vel):
+
+def datum(pa_start, pa_end, vel):
     """
-    Creates the data that can then be plotted on the polar axis or axes created.
+    Creates one datum that can then be plotted on the polar axis or axes created.
     :param pa_start: Angle at start of range (in DEGREES)
     :param pa_end: Angle at end of range (in DEGREES)
     :param vel: Velocity
@@ -192,3 +191,42 @@ def data(pa_start, pa_end, vel):
 
     return angle_range, vel1
 
+def data(pa, pa_r, vel):
+    pa_ranges=np.array([])
+    vel_ranges=np.array([])
+
+    for i in range(len(vel)):
+        if pa_r[i] > 180:
+            pa_r[i] = 180
+
+        pa_start = pa[i] - pa_r[i]
+        pa_end = pa[i] + pa_r[i]
+
+        if pa_start < 0:
+            print pa[i], pa_r[i]
+            pa_start1 = 180-pa_start
+            angle_range, vel1 = datum(pa_start1, 179.9, vel[i])
+            pa_ranges = np.append(pa_ranges, [angle_range])
+            vel_ranges = np.append(vel_ranges, [vel1])
+
+            angle_range, vel1 = datum(0.1, pa_end, vel[i])
+            pa_ranges = np.append(pa_ranges, [angle_range])
+            vel_ranges = np.append(vel_ranges, [vel1])
+
+        elif pa_end > 180:
+            print pa[i], pa_r[i]
+            pa_end1 = pa_end-180
+            angle_range, vel1 = datum(pa_start, 179.9, vel[i])
+            pa_ranges = np.append(pa_ranges, [angle_range])
+            vel_ranges = np.append(vel_ranges, [vel1])
+
+            angle_range, vel1 = datum(0.1, pa_end1, vel[i])
+            pa_ranges = np.append(pa_ranges, [angle_range])
+            vel_ranges = np.append(vel_ranges, [vel1])
+
+        else:
+            angle_range, vel1 = datum(pa_start, pa_end, vel[i])
+            pa_ranges = np.append(pa_ranges, [angle_range])
+            vel_ranges = np.append(vel_ranges, [vel1])
+
+    return pa_ranges, vel_ranges

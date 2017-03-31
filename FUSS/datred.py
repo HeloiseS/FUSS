@@ -44,7 +44,7 @@ import pysynphot as S
 from scipy import special as special
 
 # ###### LOCATION OF FILE CONTAINING CHROMATIC ZERO ANGLES ######### #
-zero_angles = '/home/heloise/FUSS/theta_fors2.txt'
+zero_angles = '/home/heloise/my_packages/FUSS/theta_fors2.txt'
 # ################################################################## #
 
 

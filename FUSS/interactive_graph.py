@@ -20,7 +20,7 @@ class DataRange():
         - x : x coordinates of the data
         - y : y coordinates of the data
         - yr : errors on y
-        - start = Beaning of the range (x dimension)
+        - start = Beginning of the range (x dimension)
         - end = End of the range (x dimension)
     NOTE: didn't put in a attribute for errors on  as for my spectra I usually don't have any.
 
@@ -80,7 +80,7 @@ def def_ranges(fig, flux, err=False):
     :param flux: flux spectrum data. 2-3 D array. flux[0] = wavelength, flux[1] = flux values. If err=True,
     flux[2] = error on flux[1]. Could be any 2-3 D data set.
     :param err: Boolean. Set to True if data has errors on y.
-    :return:
+    :return: ranges_data = list of DataRange objects
     """
     # need to make some variables and lists globally defined for "onclick" to be able to use them
     global coords
