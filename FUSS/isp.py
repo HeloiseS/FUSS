@@ -4,6 +4,7 @@ import FUSS as F
 import interactive_graph as ig
 from FUSS import stat as Fstat
 import math as m
+from scipy import special as special
 
 
 def from_emline(filename_pol, filename_spctr, wlmin=4400, cont2ranges = False):
@@ -192,8 +193,44 @@ def from_range(filename_pol, wlmin=None, wlmax=None):
 
     return pisp, pispr, qisp, qispr, uisp, uispr
 
+def debias_p(p, pr, q=None, qr=None, u=None, ur=None, bayesian_pcorr = True, p0_step = 0.01):
+    #  If bayesian_pcorr is False, P will be debiased as in Wang et al. 1997 using a step function
+    if bayesian_pcorr is False:
+        print "Step Func - p correction"
+        pfinal = np.array([])
+        for ind in range(len(p)):
+            condition = p[ind] - pr[ind]
+            if condition > 0:
+                p_0i = p[ind]-((float(pr[ind]**2))/float(p[ind]))
+            elif condition < 0:
+                p_0i = p[ind]
 
-def linear_isp(wlp, gradq, constq, gradu, constu, q=None, qr=None, u=None, ur=None):
+            pfinal = np.append(pfinal, p_0i)
+        return pfinal
+
+    #  If bayesian_pcorr is True, P will be debiased using the Bayesian method described by J. L. Quinn 2012
+    #  the correceted p is pbar_{0,mean} * sigma. pbar_{0,mean} is given by equation 47 of J. L. Quinn 2012
+    if bayesian_pcorr is True:
+        print "Bayesian - p correction"
+        sigma = (qr + ur)/2
+        pbar = p/sigma
+        pfinal = np.array([])
+        for j in range(len(pbar)):
+            p0 = np.arange(p0_step, pbar[j], p0_step)
+            rho = np.array([])
+            for i in range(len(p0)):
+                tau = (sigma[j]**2)*2*p0[i]
+                pp0 = pbar[j]*p0[i]
+                RiceDistribution = pbar[j]*np.exp(-((pbar[j]**2 + p0[i]**2)/2)) * special.iv(0, pp0)
+                rhoi = RiceDistribution * tau
+                rho = np.append(rho, rhoi)
+
+            p0mean = np.average(p0, weights=rho)
+            pfinal = np.append(pfinal, p0mean*sigma[j])  # !!!! need to multiply by sigma to get p0 and not p0/bar.
+        return pfinal
+
+
+def linear_isp(wlp, gradq, constq, gradu, constu, q=None, qr=None, u=None, ur=None, bayesian_pcorr=False, p0_step = 0.01):
     """
     Calculates a linear and can also remove it from polarisation data if provided
     :param wlp: 1D Array of wavelength bins of final desired isp (often the wavelength bins fo your pol data)
@@ -205,6 +242,8 @@ def linear_isp(wlp, gradq, constq, gradu, constu, q=None, qr=None, u=None, ur=No
     :param qr: Err on Stokes q of pol data you want to correct for isp. Default is None.
     :param u: Stokes u of pol data you want to correct for isp. Default is None.
     :param ur: Err on Stokes u of pol data you want to correct for isp. Default is None.
+    :param bayesian_pcorr: Boolean. If the data is being corrected for ISP and p debiasing should be done using
+    the bayesian aproach set to True. Default is False.
     :return: If polarisation data not provided, only returns the array isp = [qisp, qisp_r, uisp, uisp_r],
     if data provided returns new_stokes = [wlp, pisp, pispr error, qisp, qisp error, uisp, uisp error,
     pol angle, pol angle error], and then isp = [qisp, qisp_r, uisp, uisp_r].
@@ -254,12 +293,16 @@ def linear_isp(wlp, gradq, constq, gradu, constu, q=None, qr=None, u=None, ur=No
         newa = np.append(newa, thetai)
         newar = np.append(newar, thetai_r)
 
-    new_stokes = [wlp, newp, newpr, newq, newqr, newu, newur, newa, newar]
+    if bayesian_pcorr is False:
+        newp_debias = debias_p(newp, newpr, bayesian_pcorr=False)
+    elif bayesian_pcorr is True:
+        newp_debias = debias_p(newp, newpr, newq, newqr, newu, newur, bayesian_pcorr=True, p0_step=p0_step)
+
+    new_stokes = [wlp, newp_debias, newpr, newq, newqr, newu, newur, newa, newar]
 
     return new_stokes, isp
 
-
-def const_isp(wlp, qisp, qispr, uisp, uispr, q, qr, u, ur):
+def const_isp(wlp, qisp, qispr, uisp, uispr, q, qr, u, ur, bayesian_pcorr=True, p0_step=0.01):
     """
     Removes single valued (constant with wavelength) isp from data
     :param wlp: wavelength bins of the data
@@ -296,6 +339,11 @@ def const_isp(wlp, qisp, qispr, uisp, uispr, q, qr, u, ur):
         newa = np.append(newa, thetai)
         newar = np.append(newar, thetai_r)
 
-    new_stokes =[wlp, newp, newpr, newq, newqr, newu, newur, newa, newar]
+    if bayesian_pcorr is False:
+        newp_debias = debias_p(newp, newpr, bayesian_pcorr=False)
+    elif bayesian_pcorr is True:
+        newp_debias = debias_p(newp, newpr, newq, newqr, newu, newur, bayesian_pcorr=True, p0_step=p0_step)
+
+    new_stokes =[wlp, newp_debias, newpr, newq, newqr, newu, newur, newa, newar]
 
     return new_stokes

@@ -561,7 +561,7 @@ class PolData(object):
             self.qisp = None # this will be used as a condidtion for the method of isp removal in rmv_isp
         return
 
-    def rmv_isp(self):
+    def rmv_isp(self, bayesian_pcorr=True, p0_step=0.01):
         """
         Removes ISP and updates q, qr, u, ur, p, pr, a and ar.  Initialises q0, q0r, u0, u0r, p0, p0r, a0, and a0r
         which are the original non ISP corrected Stokes parameters, degree of polarisation, polarisation angle,
@@ -584,15 +584,17 @@ class PolData(object):
 
         if self.qisp is None:
             new_stokes, __ = isp.linear_isp(self.wlp, self.gradq, self.constq,
-                                       self.gradu, self.constu,
-                                       self.q, self.qr,
-                                       self.u, self.ur)
+                                            self.gradu, self.constu,
+                                            self.q, self.qr,
+                                            self.u, self.ur,
+                                            bayesian_pcorr=bayesian_pcorr, p0_step=p0_step)
 
         elif self.gradq is None:
             new_stokes = isp.const_isp(self.wlp, self.qisp, self.qispr,
                                        self.uisp, self.uispr,
                                        self.q, self.qr,
-                                       self.u, self.ur)
+                                       self.u, self.ur,
+                                       bayesian_pcorr=bayesian_pcorr, p0_step=p0_step)
 
         self.p = new_stokes[1]
         self.pr =new_stokes[2]
