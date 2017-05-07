@@ -1,3 +1,4 @@
-# Welcome!
-For documentation see our wiki or the pdf in the DOC folder :)
+# Welcome to our code For Use with Superova Spectropolarimetry (FUSS)
+---
+
 
