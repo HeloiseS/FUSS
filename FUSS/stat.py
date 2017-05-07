@@ -31,7 +31,7 @@ func(args): lienar 2D function
 odr_fit(args): fits 2D data with a line using Orthogonal Distance Regression 
 
 """
-
+from __future__ import division
 import numpy as np
 import math as m
 from matplotlib.patches import Ellipse
