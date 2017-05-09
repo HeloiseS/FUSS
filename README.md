@@ -9,3 +9,5 @@ FUSS v1.0 was used to reduce and analyse the data for our paper on SN 2014ad, wh
 
 For further information you can contact me at fstevance1@sheffield.ac.uk .
 
+Copyright (c) 2017 Fanny Stevance
+
