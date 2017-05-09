@@ -1,6 +1,6 @@
 # Welcome to our code FUSS!
 
-Our code __For Use with Superova Spectropolarimetry__ (FUSS) was written to facilitate the data reduction and analysis of spectropolarimetric data. It includes several IRAF CL routines as well as a Python 2.7 package (a list of the pre-required packages can be found in the documentation).
+Our code __For Use with Supernova Spectropolarimetry__ (FUSS) was written to facilitate the data reduction and analysis of spectropolarimetric data. It includes several IRAF CL routines as well as a Python 2.7 package (a list of the pre-required packages can be found in the documentation).
 
 The documentation can be found in the form of our [wiki](https://github.com/HeloiseS/FUSS/wiki), or the PDF file [FUSS.pdf](https://github.com/HeloiseS/FUSS/blob/master/DOC/FUSS.pdf).
 
