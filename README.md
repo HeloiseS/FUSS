@@ -9,9 +9,15 @@ If you want to use our code, or part of our code, we would be grateful if you co
 
 For documentation, see our wiki, or the pdf in the docs/FUSS folder. 
 
-## Installation 
+## Installation
+### Python
+`pip install fussy`
 
-`pip install fusspy`
+### IRAF scripts
+
+Create tasks in your login.cl file for the .cl scripts located in FUSS/iraf_scripts
+
+e.g. `task    $ascii_f = [path_to_iraf_scripts]$toascii_flux.cl`
 
 ## Licensed
 
