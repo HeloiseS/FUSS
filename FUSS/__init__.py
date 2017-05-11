@@ -1,17 +1,17 @@
-# Licensed under a 3-clause BSD style license - see LICENSE.rst
-
 """
-This is an Astropy affiliated package.
-"""
+9 - May - 2017 / H. F. Stevance fstevance1@sheffield.ac.uk
 
-# Affiliated packages may add whatever they like to this file, but
-# should keep this content at the top.
-# ----------------------------------------------------------------------------
+Available modules:
+ - datred
+ - interactive_graph
+ - isp 
+ - polmisc (loaded here for backwards compatibility)
+ - polplot
+ - stat 
+"""
 from ._astropy_init import *
-# ----------------------------------------------------------------------------
 
 if not _ASTROPY_SETUP_:
-    # For egg_info test builds to pass, put package imports here.
+    from polmisc import *
 
-    pass
 

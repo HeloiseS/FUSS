@@ -41,6 +41,11 @@ except ImportError:
 # Load all of the global Astropy configuration
 from astropy_helpers.sphinx.conf import *
 
+extensions.remove('astropy_helpers.sphinx.ext.numpydoc')
+extensions.append('sphinx.ext.napoleon')
+
+napoleon_google_dosctring = True
+
 # Get configuration information from setup.cfg
 try:
     from ConfigParser import ConfigParser
