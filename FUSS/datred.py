@@ -15,7 +15,8 @@ Can be found at: http://www.eso.org/sci/facilities/paranal/instruments/fors/inst
 
 Functions:
 ---------
-sort_red(): Creates back-up of the compressed files, uncompresses them, sorts them and re-names them according to the naming convention
+sort_red(): Creates back-up of the compressed files, uncompresses them, sorts them and re-names them according to the
+naming convention
 required to use with my .cl files during data reduction in IRAF. Returns: None
 
 info(): Creates a text file containing useful information on the calibration and data files.
@@ -23,12 +24,13 @@ Must use in folder containing the uncompressed FITS files. Returns: None
 -> Output File Format: Filename, ESO label, Retarder Plate Angle, Exposure time,Airmass, Grism, Bin, number of Pixels,
 1/Gain, Read Out Noise, Date.
 
-hwrpangles(): Creates the file used by lin_specpol to know which images correspond to which HWRP angle. It creates separate file
+hwrpangles(): Creates the file used by lin_specpol to know which images correspond to which HWRP angle. It creates
+separate file
 for the CCSN, zero pol std, and polarised std. The output files are made of 4 columns containing the numbers of
 images corresponding to the 0, 22.5, 45 and 67.5 degree retarder plate angles. 1 set per line.
 
-lin_specpol(): Calculates the Stokes parameters and P.A of a data set and writes them out in a text file. Also produces a plot
-showing p, q, u, P.A and Delta epsilon_q and Delta epsilon_u. The plots is not automatically saved.
+lin_specpol(): Calculates the Stokes parameters and P.A of a data set and writes them out in a text file. Also produces
+a plot showing p, q, u, P.A and Delta epsilon_q and Delta epsilon_u. The plots is not automatically saved.
 
 circ_specpol(): Calculates the circular polarisation v and the delta epsilon. Plot not automatically saved.
 
@@ -368,7 +370,8 @@ def lin_specpol(oray='ap2', hwrpafile = 'hwrpangles.txt', e_min_wl = 3775, bayes
     Calculates the Stokes parameters and P.A of a data set and writes them out in a text file. Also produces a plot
     showing p, q, u, P.A and Delta epsilon_q and Delta epsilon_u. The plots is not automatically saved.
     :param oray: Which aperture corresponds to the ordinary ray: 'ap1' or 'ap2'. Default is 'ap2'.
-    :param hwrpafile: The file telling lin_specpol() which image corresponds to which HWRP angle. Created by hwrpangles(). Default is 'hwrpangles.txt',
+    :param hwrpafile: The file telling lin_specpol() which image corresponds to which HWRP angle. Created by hwrpangles
+    (). Default is 'hwrpangles.txt',
     :param e_min_wl: The first wavelength of the range within which Delta epsilons will be calculated. Default is 3775 (ang).
     :param bayesian_pcorr: Boolean, if True then the debiasing of p will be done using the bayesian method (J. L. Quinn 2012),
      if False then the step function method will be used (wang et al 1997). Default is True.
@@ -436,6 +439,8 @@ def lin_specpol(oray='ap2', hwrpafile = 'hwrpangles.txt', e_min_wl = 3775, bayes
                 # correspond to a 0 deg HWRP angle set up. The naming convention is crucial for this line to work
                 # as it keeps the number in the filename in the location: filename[-10:-8] or filename[-14:-12] for
                 # flux and flux_error files, respectively.
+
+                # Francesco: Use regex to look for \w*?_\d{2}*? check the regex codes
                 if filename[-10:-8] in ls_0 or filename[-14:-12] in ls_0:
                     # Now we put the filename in the right list, oray or eray and flux or error on flux.
                     if oray in filename:
