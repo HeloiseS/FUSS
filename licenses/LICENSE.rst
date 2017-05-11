@@ -1,4 +1,4 @@
-Copyright (c) year, H. F. Stevance
+Copyright (c) 2017, H. F. Stevance
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without modification,
