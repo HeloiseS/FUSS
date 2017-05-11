@@ -75,29 +75,48 @@ from FUSS import isp as isp
 
 def get_spctr(filename, wlmin=0, wlmax=100000, err=False, scale=True):
     """
-    Imports spectrum. File format: wl(Angstrom) flux *flux_error* (*optional*)
-    :param filename: Name of the ASCII file where the spectrum is.
-    :param wlmin: Lower wavelength cutoff. Default = 0.
-    :param wlmax: Upper wavelength cutoff. Default = 100000.
-    :param err: Boolean. If there is an error column, set to True. Default is False.
-    :param scale: Boolean. Default is True. Multiplies the spectrum (and error) by the median values of the flux.
-    :return: wavelength, flux, *flux_error*
+    Imports spectrum.
+
+    Notes
+    -----
+    Required file format: wl(Angstrom) flux *flux_error* (*optional*)
+
+    Parameters
+    ----------
+    filename : string
+        Name of the ASCII file where the spectrum is.
+    wlmin : int, optional
+        Lower wavelength cutoff. Default = 0.
+    wlmax : int, optional
+        Upper wavelength cutoff. Default = 100000.
+    err : boolean, optional
+        If there is an error column, set to True. Default is False.
+    scale : boolean, optional
+        Default is True. Multiplies the spectrum (and error) by the median values of the flux.
+
+    Returns
+    -------
+    Tuple of 1D Arrays
+        => Wavelength, Flux, *flux_error* (optional)
+
     """
 
     if err is False:
-        wl0, f0 = np.loadtxt(filename, unpack=True, usecols=(0, 1))
-        wl = wl0[np.argwhere(wl0 > wlmin)[0]:np.argwhere(wl0 < wlmax)[-1]]
-        f = f0[np.argwhere(wl0 > wlmin)[0]:np.argwhere(wl0 < wlmax)[-1]]
+        flux = np.loadtxt(filename, unpack=True, usecols=(0, 1))
+        cond = (flux[0] > wlmin) & (flux[0] < wlmax)
+        wl = flux[0][cond]
+        f = flux[1][cond]
         if scale is True:
             s = 1 / np.median(f)  # normalising the spectrum
             f = f * s
         return wl, f
 
     else:
-        wl0, f0, r0 = np.loadtxt(filename, unpack=True, usecols=(0, 1, 2))
-        wl = wl0[np.argwhere(wl0 > wlmin)[0]:np.argwhere(wl0 < wlmax)[-1]]
-        f = f0[np.argwhere(wl0 > wlmin)[0]:np.argwhere(wl0 < wlmax)[-1]]
-        r = r0[np.argwhere(wl0 > wlmin)[0]:np.argwhere(wl0 < wlmax)[-1]]
+        flux = np.loadtxt(filename, unpack=True, usecols=(0, 1))
+        cond = (flux[0] > wlmin) & (flux[0] < wlmax)
+        wl = flux[0][cond]
+        f = flux[1][cond]
+        r = flux[2][cond]
         if scale is True:
             s = 1 / np.median(f)
             f = f * s
@@ -107,19 +126,38 @@ def get_spctr(filename, wlmin=0, wlmax=100000, err=False, scale=True):
 
 def get_pol(filename, wlmin=0, wlmax=100000):
     """
-    Imports values from polarisation files (given by specpol routine). Required File format: 9 columns. First column must be
-    wavelength in Angstrom. Other 8 columns for stokes parameters, degree of pol and P.A, and associated errors.
-    :param filename: Name of the ASCII file.
-    :param wlmin: Lower wavelength cutoff. Default = 0.
-    :param wlmax: Upper wavelength cutoff. Default = 100000.
-    :return: One 1 D array per parameter (so first must be wavelength, order of the rest depends on input file). => 9 arrays total.
+    Imports values from polarisation files (given by specpol routine).
+
+    Notes
+    -----
+    Required File format: 9 columns.
+    First column must be wavelength in Angstrom.
+    The other 8 columns are for stokes parameters, degree of pol and P.A, and associated errors:
+        => wl p p_err q q_err u u_err angle angle_err
+
+    Parameters
+    ----------
+    filename : string
+        Name of the ASCII file.
+    wlmin : int, optional
+        Lower wavelength cutoff. Default = 0.
+    wlmax : int, optional
+        Upper wavelength cutoff. Default = 100000.
+
+    Returns
+    -------
+    Tuple of 1D Arrays
+        One 1 D array per parameter (so first must be wavelength, order of the rest depends on input file).
+        => 9 arrays total.
+
     """
 
     pol0 = np.loadtxt(filename, unpack=True, usecols=(0, 1, 2, 3, 4, 5, 6, 7, 8))
     pol = []
+    cond = (pol0[0] > wlmin) & (pol0[0] < wlmax)  # pol0[0] should contain the wavelength bins
     for val in pol0:
         # Applies the limits determined by wlmin, wlmax
-        valn = val[np.argwhere(pol0[0] > wlmin)[0]:np.argwhere(pol0[0] < wlmax)[-1]]
+        valn = val[cond]
         pol.append(valn)
 
     return pol[0], pol[1], pol[2], pol[3], pol[4], pol[5], pol[6], pol[7], pol[8]
