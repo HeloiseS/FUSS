@@ -15,7 +15,7 @@ For documentation, see our wiki, or the pdf in the docs/FUSS folder.
 
 ### IRAF scripts
 
-Create tasks in your login.cl file for the .cl scripts located in FUSS/iraf_scripts
+Create tasks in your login.cl file for the .cl scripts (not the python scripts!) located in FUSS/iraf_scripts
 
 e.g. `task    $ascii_f = [path_to_iraf_scripts]$toascii_flux.cl`
 
