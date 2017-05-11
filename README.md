@@ -19,6 +19,8 @@ Create tasks in your login.cl file for the .cl scripts (not the python scripts!)
 
 e.g. `task    $ascii_f = [path_to_iraf_scripts]$toascii_flux.cl`
 
+You will also have to edit the path to the python scripts in arc_apertures.cl, create_id.cl, toascii_flux.cl and toascii_pol.cl manually to fit the location of your iraf_scripts folder.
+
 ## Licensed
 
 This project is Copyright (c) H. F. Stevance and licensed under the terms of the MIT license. See the licenses folder for more information.
