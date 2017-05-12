@@ -89,9 +89,9 @@ def get_spctr(filename, wlmin=0, wlmax=100000, err=False, scale=True):
         Lower wavelength cutoff. Default = 0.
     wlmax : int, optional
         Upper wavelength cutoff. Default = 100000.
-    err : boolean, optional
+    err : bool, optional
         If there is an error column, set to True. Default is False.
-    scale : boolean, optional
+    scale : bool, optional
         Default is True. Multiplies the spectrum (and error) by the median values of the flux.
 
     Returns
