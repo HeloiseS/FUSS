@@ -1,3 +1,4 @@
+# TODO: Do I need to update this dosctring to have something show up in the documentation?
 """
 09 - May - 2017 / H. F. Stevance / fstevance1@sheffield.ac.uk
 
@@ -164,6 +165,8 @@ def get_pol(filename, wlmin=0, wlmax=100000):
 
 
 def dopcor(val, z):
+    # TODO: update dosctring
+    # TODO: Create test
     """
     Doppler Correction.
     :param val: Array containing the data. val[0] MUST BE THE WAVELENGTH. NEED AT LEAST 2 COLUMNS!!
@@ -182,6 +185,8 @@ def dopcor(val, z):
 
 
 def dopcor_file(filename, z):
+    # TODO: update dosctring
+    # TODO: Create test
     """
     Doppler Correction of data from a file (filename), into another file (output)
     :param filename: File containing the data to be Doppler corrected, the firsty column MUST contain the wavelength bins
@@ -213,6 +218,7 @@ def dopcor_file(filename, z):
 
 
 def ylim_def(wl, f, wlmin=4500, wlmax=9500):
+    # TODO: Do I even use this?? Can I make it less convoluted?
     '''
     YLIM_DEF finds appropriate y limits for a spectrum. Look at values between a given range (Default: 4500-9500A) where
     we don't expect few order of magnitudes discrepancies like we see sometimes at the extremeties of the spectrum, then
@@ -259,6 +265,8 @@ def ylim_def(wl, f, wlmin=4500, wlmax=9500):
 
 
 def rot_data(q, u, theta):
+    # TODO: update dosctring
+    # TODO: Create test
     """
     Rotates data
     :param q: X coordinate
@@ -284,6 +292,8 @@ def rot_data(q, u, theta):
 
 
 def norm_ellipse(xc, yc, a, b, theta, n):
+    # TODO: update dosctring
+    # TODO: Create test
     """
     Creates ellipsoidal data set normally distributed around (xc,yc)
     :param xc: x coordinate of center of ellipse
@@ -311,6 +321,7 @@ def norm_ellipse(xc, yc, a, b, theta, n):
 
 
 def ep_date():
+    # TODO: update dosctring
     """
     Interactive Routine. Finds epoch from date or date from epoch given a maximum date.
     :return:
@@ -365,6 +376,7 @@ def ep_date():
 
 
 def vel():
+    # TODO: update dosctring
     """
     Interactive routine. Finds the velocity for a given observed wavelength and rest wavelength.
     :return:
@@ -387,52 +399,98 @@ def vel():
 
 class PolData(object):
     """
-    Each instance will contain 1 spectropolarimetric data set.
+    Each instance contains one spectropolarimetric data set.
 
-    Attributes:
-        Defined by __init__
-        - name: name
-        - wlp = wavelength bins of polarisation data
-        - p = p
-        - pr = Delta p
-        - q = q
-        - qr = Delta q
-        - u = u
-        - ur = Delta u
-        - a = Polarisation Angle P.A
-        - ar = Delta P.A
-        - wlf = wavelength bins of flux spectrum
-        - f = Flux
-        - fr = Delta F
+    Note
+    -----
+        The attributes wlp, p, pr, q, qr, u, ur, a and ar are 1D arrays and must have the
+    same length.
+        The attributes wlf, f and fr must have the same length, but it can differ from the
+    length of wlp, p, etc...
+        When the ISP is removed, the attributes p0, p0r, q0, etc... store the original values
+    of p, pr, q, etc..., and the latter are updated to have the ISP corrected values of polarisation.
 
-    Defined by find_isp() or add_isp()
-        - qisp, qispr, uisp, uispr, aisp, aispr: Stokes parameters and P.A of ISP
+    Parameters
+    ----------
+    name : str
+        A short handle to make your data object recognisable (e.g. 'ep1', '14ad')
 
-    Defined by rmv_isp()
-        - p0, p0r, q0, ... , a0r : Original polarisation data before ISP correction
-        - Updates p, pr, q, ..., ar with ISP corrected values.
+    poldata : str or tuple
+        The polarisation data can be imported from a text file containing only the data, where
+        the column order is: wavelength p p_err q q_err u u_err a a_err.
 
-    Methods:
-        - add_flux_dat()
-        - flu_n_pol()
-        - find_isp()
-        - add_isp()
-        - rmv_isp()
-        - qu_plt_whole()
-        - qu_plt_line()
+        Alternatively a tuple of arrays containing the data can be provided. Make sure the order
+        of the arrays in the tuple corresponds to wavelength p p_err q q_err u u_err a a_err.
 
+    wlmin : int, optional
+        Minimum wavelength cutoff
+    wlmax : int, optional
+        Maximum wavelength cutoff
+
+    Attributes
+    ----------
+    name : str
+        A short handle to make your data object recognisable (e.g. 'ep1', '14ad')
+    wlp : array
+        1D array containing the wavelength bins of the polarisation data.
+    p : array
+        1D array containing the degree of polarisation in each bin.
+    pr : array
+        1D array containing the error on p in each bin.
+    q : array
+        1D array containing Stokes q in each bin.
+    qr : array
+        1D array containing the error on q in each bin.
+    u : array
+        1D array containing Stokes u in each bin.
+    ur : array
+        1D array containing the error on u in each bin.
+    a : array
+        1D array containing the polarisation angle in each bin.
+    ar : array
+        1D array containing the error on the polarisation in each bin.
+    wlf : array, optional
+        1D array containing wavelength bins of the flux spectrum.
+    f :  array, optional
+        1D array containing the flux in each bin.
+    fr : array, optional
+        1D array containing the error on the flux in each bin.
+    qisp : float, optional
+        Stokes q of the ISP.
+    qispr : float, optional
+        Error on q ISP.
+    uisp : float, optional
+        Stokes u of the ISP
+    uispr : float, optional
+        Error on u ISP
+    gradq : tuple, optional
+        Gradient of Stokes q ISP  and error on the gradient.
+    constq : tuple, optional
+        Intercept of Stokes q ISP and error on the intercept.
+    gradu : tuple, optional
+        Gradient of Stokes u ISP  and error on the gradient.
+    constu : tuple, optional
+        Intercept of Stokes u ISP and error on the intercept.
+    p0 : array
+        1D array containing the degree of polarisation in each bin BEFORE ISP REMOVAL.
+    p0r : array
+        1D array containing the error on p in each bin BEFORE ISP REMOVAL.
+    q0 : array
+        1D array containing Stokes q in each bin BEFORE ISP REMOVAL.
+    q0r : array
+        1D array containing the error on q in each bin BEFORE ISP REMOVAL.
+    u0 : array
+        1D array containing Stokes u in each bin BEFORE ISP REMOVAL.
+    u0r : array
+        1D array containing the error on u in each bin BEFORE ISP REMOVAL.
+    a0 : array
+        1D array containing the polarisation angle in each bin BEFORE ISP REMOVAL.
+    a0r : array
+        1D array containing the error on the polarisation in each bin BEFORE ISP REMOVAL.
     """
 
     def __init__(self, name, poldata, wlmin=None, wlmax=1000000):
-        """
-        Initialises PolData
-        :param name: Name of the data set (e.g ep1)
-        :param filename: file containing the polarisation data. Should have format:
-        wl, p, p, q, qr, u, ur, a, ar
-        :param wlmin: min wavelength cut off
-        :param wlmax: max wavelength cut off
-        :return:
-        """
+
         if type(poldata) is str:
             pol0 = get_pol(poldata, wlmin=wlmin, wlmax=wlmax)
         else:
@@ -451,6 +509,26 @@ class PolData(object):
         self.wlf = None
         self.f = None
         self.fr = None
+        self.qisp = None
+        self.qispr = None
+        self.uisp = None
+        self.uispr = None
+        self.pisp = None
+        self.pispr = None
+        self.aisp = None
+        self.aispr = None
+        self.gradq = None
+        self.constq = None
+        self.gradu = None
+        self.constu = None
+        self.q0 = None
+        self.u0 = None
+        self.q0r = None
+        self.u0r = None
+        self.p0 = None
+        self.p0r = None
+        self.a0 = None
+        self.a0r = None
 
         print " ==== PolData - instance: " + self.name + " ===="
         print "Polarisation data initialised. If you want to add Stokes I use add_flux_data(). " \
@@ -459,11 +537,17 @@ class PolData(object):
     def add_flux_data(self, filename, wlmin=None, wlmax=1000000, err=False):
         """
         Adds flux spectrum data attributes to the PolData.
-        :param filename: file containing the flux data. Format: wl, f, fr
-        :param wlmin: min wavelength cut off
-        :param wlmax: max wavelength cut off
-        :param err: Boolean. Default = False. If false, only imports wavelength and flux, not delta_flux.
-        :return: Does not return anything
+
+        Parameters
+        ----------
+        filename : str
+            File containing the flux data. File format: wl, f, fr (no comas)
+        wlmin : int
+            Minimum wavelength cut off
+        wlmax :
+            Maximum wavelength cut off
+        err : bool
+            If false, only imports wavelength and flux, not the error on the flux. Default = False.
         """
         flux = get_spctr(filename, wlmin=wlmin, wlmax=wlmax)
         self.wlf = flux[0]
@@ -476,10 +560,17 @@ class PolData(object):
 
     def flu_n_pol(self, save=False):
         """
-        Creates plot of p, q, u, theta, and flux. /!\ xaxis is SHARED, so limits on polarisation attributes and flux attributes
-        should be the same.
-        :param save: Whether to save the plot or not. Saved as [self.name]_fnp.png
-        :return:
+        Creates plot of p, q, u, theta, and flux.
+
+        Note
+        ----
+        /!\ The x-axis is SHARED, so limits on polarisation attributes and flux
+        attributes should be the same.
+
+        Parameters
+        ----------
+        save : bool
+            Whether to save the plot or not. Saved as [self.name]_fnp.png
         """
 
         fnp = plt.figure(figsize=(10, 10))
@@ -531,17 +622,26 @@ class PolData(object):
 
     def find_isp(self, wlmin, wlmax):
         """
-        Estimates ISP: simply an average of q and u over a given wavelength range which should correspond to line
+        Estimates ISP
+
+        Notes
+        -----
+        Simply an average of q and u over a given wavelength range which should correspond to line
         blanketting region.
-        :param wlmin: Start of wavelength range.
-        :param wlmax: End of wavelength range.
-        :return: Does not return anything
+
+        Parameters
+        ----------
+        wlmin : int
+            Start of wavelength range.
+        wlmax : int
+            End of wavelength range.
         """
 
         ls = [self.q, self.qr, self.u, self.ur]
+        cond = (self.wlp > wlmin) & (self.wlp < wlmax)
         crop = []
         for val in ls:
-            valn = val[np.argwhere(self.wlp > wlmin)[0]:np.argwhere(self.wlp < wlmax)[-1]]
+            valn = val[cond]
             crop.append(valn)
 
         # Values of p, q, u, a and their error for ISP
@@ -566,15 +666,27 @@ class PolData(object):
         return self.qisp, self.qispr, self.uisp, self.uispr
 
     def add_isp(self, constisp_params = None, linearisp_params = None):
+        # TODO: I need 2 tests for this function
         """
         Adds parameters of isp to the data.
-        :param constisp_params: If the isp is constant give the stokes parameters of the isp here in a list:
+
+        Parameters
+        ----------
+        constisp_params : tuple
+            If the isp is constant give the stokes parameters of the isp here in a list:
         [qisp, qisp error, uisp , uisp error]
-        :param linearisp_params: If the isp changes linearly with wavelength, give the parameters of the linear
-        dependencies of q and u here. If qisp = grad_q * lambda + intercept_q (and similar equation for u) write:
-        linearisp_params = [[grad_q, grad_q error],[intercept_q, intercept_q error],
-        [grad_u, grad_u error],[intercept_u, intercept_u error]]
-        :return: nothing
+        linearisp_params : tuple
+            Tuple of tuples: [[grad_q, grad_q error],[intercept_q, intercept_q error],
+            [grad_u, grad_u error],[intercept_u, intercept_u error]].
+            For qisp = grad_q * lambda + intercept_q (and similar equation for u), where lambda is in Angstrom.
+
+        Examples
+        --------
+            If the ISP is constant across your wavelength range, put its values an associated errors in constisp_params:
+            >> PolDataObj.add_isp(constisp_params=[0.14, 0.04, 0.08, 0.03])
+
+            If the isp changes linearly with wavelength, give the parameters for the lines of q and u ISP here.
+            >> PolDataObj.add_isp(linearisp_params=[[0.00035, 0.00003],[2.45, 0.19]])
         """
 
         if linearisp_params is None:
@@ -594,18 +706,21 @@ class PolData(object):
                   + "\n usip = " + str(self.uisp) + " +/- " + str(self.uispr) \
                   + "\n pisp = " + str(self.pisp) + " +/- " + str(self.pispr) \
                   + "\n P.A isp = " + str(self.aisp) + " +/- " + str(self.aispr) + "\n"
-            self.gradq = None # this will be used as a condidtion for the method of isp removal in rmv_isp
+            self.gradq = None # this will be used as a condition for the method of isp removal in rmv_isp
         elif constisp_params is None:
             self.gradq, self.constq, self.gradu, self.constu = linearisp_params
-            self.qisp = None # this will be used as a condidtion for the method of isp removal in rmv_isp
+            self.qisp = None # this will be used as a condition for the method of isp removal in rmv_isp
         return
 
     def rmv_isp(self, bayesian_pcorr=True, p0_step=0.01):
+        # TODO: I need 2 tests for this. Maybe will need 14ad data for the constant case and 11hs for the linear case
         """
-        Removes ISP and updates q, qr, u, ur, p, pr, a and ar.  Initialises q0, q0r, u0, u0r, p0, p0r, a0, and a0r
-        which are the original non ISP corrected Stokes parameters, degree of polarisation, polarisation angle,
-        and associated errors.
-        :return:
+        Removes ISP and updates q, qr, u, ur, p, pr, a and ar.
+
+        Note
+        -----
+        Stores the original non ISP corrected degree of polarisation, Stokes parameters, polarisation angle,
+        and associated errors in p0, p0r, q0, q0r, u0, u0r, a0, and a0r, and updates p, pr, q, qr, u, ur, a and ar.
         """
 
         # Storing original values  of Stokes parameters and their errors in newly defined
@@ -650,6 +765,9 @@ class PolData(object):
                marker='.', lambda_xshift=1.7, fit=True,
                qlab_vis=True, ulab_vis=True,
                qticks_vis=True, uticks_vis=True):
+        # TODO: Really need to update this docstring
+        # TODO: anyway to use *args here? how does that even work?
+        # TODO: Some kinda test. Do I need to test all the arguments? What is good practice?
         """
         Plots the QU plane corresponding to the imported data.
         :param subplot_loc: Docation of the subplot. Default = 111. Can be a 3 digit integer or a gridspec location if
@@ -682,7 +800,7 @@ class PolData(object):
         """
 
         # ###################       FITTING THE DATA WITH DOM AXIS         ########################### #
-
+        # TODO: can I jsut use a lambda function in model: Model(func)??
         def func(beta, x):
             # Expression of the line that we want to fit to the data
             y = beta[0] + beta[1] * x
@@ -712,6 +830,7 @@ class PolData(object):
             qu.plot(q_n, u_n, 'k--', linewidth=2, zorder=1000)
             # the zorder is high to sit on top of the scatter created belox
 
+        # TODO: This is code breaking I have to fix it!
         wl_crop = self.wlp[np.argwhere(self.wlp > wlmin)[0]:np.argwhere(self.wlp < wlmax)[-1]]
         q_crop = self.q[np.argwhere(self.wlp > wlmin)[0]:np.argwhere(self.wlp < wlmax)[-1]]
         qr_crop = self.qr[np.argwhere(self.wlp > wlmin)[0]:np.argwhere(self.wlp < wlmax)[-1]]
