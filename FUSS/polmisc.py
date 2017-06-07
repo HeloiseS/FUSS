@@ -830,20 +830,23 @@ class PolData(object):
             qu.plot(q_n, u_n, 'k--', linewidth=2, zorder=1000)
             # the zorder is high to sit on top of the scatter created belox
 
-        # TODO: This is code breaking I have to fix it!
-        wl_crop = self.wlp[np.argwhere(self.wlp > wlmin)[0]:np.argwhere(self.wlp < wlmax)[-1]]
-        q_crop = self.q[np.argwhere(self.wlp > wlmin)[0]:np.argwhere(self.wlp < wlmax)[-1]]
-        qr_crop = self.qr[np.argwhere(self.wlp > wlmin)[0]:np.argwhere(self.wlp < wlmax)[-1]]
-        u_crop = self.u[np.argwhere(self.wlp > wlmin)[0]:np.argwhere(self.wlp < wlmax)[-1]]
-        ur_crop = self.ur[np.argwhere(self.wlp > wlmin)[0]:np.argwhere(self.wlp < wlmax)[-1]]
+        cond = (self.wlp > wlmin) & (self.wlp < wlmax)
+        wl_crop = self.wlp[cond]
+        q_crop = self.q[cond]
+        qr_crop = self.qr[cond]
+        u_crop = self.u[cond]
+        ur_crop = self.ur[cond]
 
         # #################### CREATING THE PLOT ########################
-
+        plt.set_cmap('plasma') # Plasma is perceptually uniform. Otherwise use 'jet'
         if wlrest is None:
             # Defining the min and max wavelength, which are going to be the beginning and end of the colour map
             wlmin = min(wl_crop)
             wlmax = max(wl_crop)
-            sc = qu.scatter(q_crop, u_crop, s=100, vmin=wlmin, vmax=wlmax, c=wl_crop, marker=marker, zorder=600, lw=0)
+            sc = qu.scatter(q_crop, u_crop, s=100,
+                            vmin=wlmin, vmax=wlmax,
+                            c=wl_crop, marker=marker,
+                            zorder=600, lw=0)
 
         else:
             vel = np.array([])
@@ -857,7 +860,11 @@ class PolData(object):
             velmin = min(vel)
             velmax = max(vel)
             print velmin, velmax
-            sc = qu.scatter(q_crop, u_crop, s=100, vmin=velmin, vmax=velmax, c=vel, marker=marker, zorder=600, lw=0)
+            sc = qu.scatter(q_crop, u_crop, s=100,
+                            vmin=velmin, vmax=velmax,
+                            c=vel, marker=marker,
+                            zorder=600, lw=0)
+
 
         # ################## Plotting Points ###############################
         # vmin and vmax are the start and end of the colour map. c = wl because we're defining the colourmap using the
