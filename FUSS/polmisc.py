@@ -765,46 +765,68 @@ class PolData(object):
                marker='.', lambda_xshift=1.7, fit=True,
                qlab_vis=True, ulab_vis=True,
                qticks_vis=True, uticks_vis=True):
-        # TODO: Really need to update this docstring
         # TODO: anyway to use *args here? how does that even work?
-        # TODO: Some kinda test. Do I need to test all the arguments? What is good practice?
         """
         Plots the QU plane corresponding to the imported data.
-        :param subplot_loc: Docation of the subplot. Default = 111. Can be a 3 digit integer or a gridspec location if
-        created a grid using gridspec.
-        :param wlmin: min wavelength cut off. Default None.
-        :param wlmax: max wavelength cut off. Default 100000.
-        :param qlim: [min q, max q]. Default = [-3.0, 3.0]
-        :param ulim: [min u, max u]. Default = [-3.0, 3.0]
-        :param textloc: Location of name of qu-plot. Default = [-2.7, -2.7]
-        :param cisp: Color of ISP marker. Default = 'k'
-        :param fs: Font size. Applies to text on plot and axis labels, not graduations on the axes. Default = 16
-        :param ls: Label size. Size of the tick numbers on axes. Default = 14.
-        :param isp: Booleaan. Whether to plot ISP. Default False.
-        :param wlrest: If plotting qu plot of a line, rest wavelength of that line. Otherwise leave default value: None.
-        :param colorbar: Boolean. Default is True. If False the colorbar is not plotted.
-        :param colorbar_labelsize: Label size of the color bar ticks. Default 15.
-        :param size_clbar: Modifies the size of the colour bar. Also screws with the plot somehow. Default = 0.05.
-        :param line_color: If want a solid colour for the lines between the markers. Default is None and gives lines
-        cycling through rainbow colors to match the color of the point they are associated with.
-        :param marker: Type of marker to be used. Default is '.'
-        :param lambda_xshift: Position of the colourbar label define as qmax + shift. This is the shift value.
-        Default is 1.7.
-        :param fit: Boolean. Default is True. If False the dominant axis will not be plotted. Its parameters will still
-        be calculated and returned.
-        :param qlab_vis: Boolean. If False, the q label is not plotted. Default is True.
-        :param ulab_vis: Boolean. If False, the u label is not plotted. Default is True.
-        :param qticks_vis: Boolean. If False, all q tick labels are invisible. Default is True.
-        :param qticks_vis: Boolean. If False, all u tick labels are invisible. Default is True.
-        :return: The axis the qu plane is plotted on. That way can plot other things on top, e.g line or ellipse or whatevs.
+
+        Parameters
+        ----------
+        subplot_loc : int or matplotlib.gridspec.GridSpec, optional
+            Location of the subplot.  Can be a 3 digit integer or a gridspec location ifcreated a grid using gridspec.
+            Default = 111.
+        wlmin : int, optional
+            Min wavelength cut off. Default None.
+        wlmax : int, optional
+            Max wavelength cut off. Default 100000.
+        qlim : tuple, optional
+            [min q, max q]. Default = [-3.0, 3.0]
+        ulim : tuple, optional
+            [min u, max u]. Default = [-3.0, 3.0]
+        textloc : tuple, optional
+            Location of name of qu-plot. Default = [-2.7, -2.7]
+        cisp : string, optional
+            Color of ISP marker. Default = 'k'
+        fs : int, optional
+            Font size. Applies to text on plot and axis labels, not graduations on the axes. Default = 16
+        ls : int, optional
+            Label size. Size of the tick numbers on axes. Default = 14.
+        isp : bool, optional
+            Whether to plot ISP. Default False.
+        wlrest :int, optional
+            If plotting qu plot of a line, rest wavelength of that line. Otherwise leave default value: None.
+        colorbar : bool, optional
+            Default is True. If False the colorbar is not plotted.
+        colorbar_labelsize : int, optional
+            Label size of the color bar ticks. Default 15.
+        size_clbar : float, optional
+            Modifies the size of the colour bar. Also screws with the plot somehow. Default = 0.05.
+        line_color : string, optional
+            If want a solid colour for the lines between the markers. Default is None and gives lines cycling through
+            rainbow colors to match the color of the point they are associated with.
+        marker : string, optional
+            Type of marker to be used. Default is '.'
+        lambda_xshift : float, optional
+            Position of the colourbar label define as qmax + shift. This is the shift value. Default is 1.7.
+        fit : bool, optional
+            If False the dominant axis will not be plotted. Its parameters will still be calculated and returned.
+            Default is True.
+        qlab_vis : bool, optional
+            If False, the q label is not plotted. Default is True.
+        ulab_vis : bool, optional
+            If False, the u label is not plotted. Default is True.
+        qticks_vis : bool, optional
+            If False, all q tick labels are invisible. Default is True.
+        uticks_vis : bool, optional
+            If False, all u tick labels are invisible. Default is True.
+
+        Returns
+        ------
+            matplotlib.axes._subplots.AxesSubplot
+            The axis the qu plane is plotted on. That way can plot other things on top, e.g line or ellipse or else.
         """
 
         # ###################       FITTING THE DATA WITH DOM AXIS         ########################### #
-        # TODO: can I jsut use a lambda function in model: Model(func)??
-        def func(beta, x):
-            # Expression of the line that we want to fit to the data
-            y = beta[0] + beta[1] * x
-            return y
+        func = lambda beta,x: beta[0] + beta[1] * x # Expression of the line that we want to fit to the data
 
         data = RealData(self.q, self.u, self.qr, self.ur)
         model = Model(func)
