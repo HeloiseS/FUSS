@@ -41,7 +41,7 @@ circ_specpol():
 flux_spectrum():
     Combines all the flux calibrated apertures to create the flux spectrum.
 """
-
+# TODO: internal functions name _internal_function()
 import os
 from astropy.io import fits
 import numpy as np

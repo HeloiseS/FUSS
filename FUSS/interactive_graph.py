@@ -7,38 +7,70 @@ class DataRange():
     """
     I use this class to store data within a range.
 
-    Initiation:
-        instance_name = DataRange(name, xdata ydata, ydata_err=None)
-    name: string
-    xdata: 1D array
-    ydata: 1D array
-    ydata_err: 1D array. Default is None. If errors are given the average function
-    will perform a weighted average (if not then a normal average).
+    Notes
+    ------
+    Didn't put in a attribute for errors on x as for my spectra I usually don't have any.
 
-    Attributes defined on initiation:
-        - name : Name of the range
-        - x : x coordinates of the data
-        - y : y coordinates of the data
-        - yr : errors on y
-        - start = Beginning of the range (x dimension)
-        - end = End of the range (x dimension)
-    NOTE: didn't put in a attribute for errors on  as for my spectra I usually don't have any.
+    Attributes
+    ----------
+    name : string
+        Name of the range
+    x : int or float
+        x coordinates of the data
+    y : int or float
+        y coordinates of the data
+    yr : int or float
+        errors on y
+    start : int
+        Beginning of the range (x dimension)
+    end : int
+        End of the range (x dimension)
+    middle : int or float
+        Median of the x coordinates
+    avg: int or flaot
+        Average of the y coordinates
 
-    Function:
-        - Creates the following attributes:
-            # middle: it is the median of the x coordinates
-            # average: it is the average of the y coordinates
+    Methods
+    -------
+    average()
+
     """
 
     def __init__(self, name, xdata, ydata, ydata_err=None):
+        """
+        Examples
+        --------
+        instance_name = DataRange(name, xdata ydata, ydata_err=None)
+
+        Notes
+        -----
+        xdata, ydata and ydata_err (if provided) must have the same dimensions
+
+        Parameters
+        ----------
+        name : string
+        xdata : array
+            1D array containing the x coordinates of the data
+        ydata : array
+            1D array containing the y coordinates of the data
+        ydata_err : array, optional
+            1D array containing the error on the y coordinate of the data. Default is None.
+            If errors are given the average function will perform a weighted average.
+
+        """
         self.name = name
         self.x = xdata
         self.y = ydata
         self.yr = ydata_err
         self.start = min(self.x)
         self.end = max(self.x)
+        self.middle = None
+        self.avg = None
 
     def average(self):
+        """
+        Finds the average of ydata values and the median of xdata values and defines self.middle and self.avg.
+        """
         if self.yr is None:
             self.middle = np.median(self.x)
             self.avg = np.average(self.y)
@@ -49,10 +81,15 @@ class DataRange():
 
 def onclick(event):
     """
-    Takes in the  x coordinates of the point where the mouse has been clicked. Requires ranges_graph (list), num (int)
-    and coords (list), which are not defined in this function, to work.
-    :param event: e.g 'button_press_event'
-    :return:
+    Takes in the  x coordinates of the point where the mouse has been clicked.
+    Notes
+    -----
+    Requires ranges_graph (list), num (int) and coords (list), which are defined in def_ranges().
+
+    Parameters
+    ----------
+    event : ?? e.g 'button_press_event'
+
     """
     global num
     global datx
@@ -74,13 +111,26 @@ def onclick(event):
 
 def def_ranges(fig, flux, err=False):
     """
-    Defines ranges  of coordinates from user interaction with graph (mouse click). Matplotlib figure should already be
-    given and spectrum pltoed created but not shown
-    :param fig: matplotlib figure on which graph will be shown
-    :param flux: flux spectrum data. 2-3 D array. flux[0] = wavelength, flux[1] = flux values. If err=True,
-    flux[2] = error on flux[1]. Could be any 2-3 D data set.
-    :param err: Boolean. Set to True if data has errors on y.
-    :return: ranges_data = list of DataRange objects
+    Defines ranges  of coordinates from user interaction with graph (mouse click).
+
+    Notes
+    -----
+    Matplotlib figure should already be given and spectrum plotted created but not shown.
+
+    Parameters
+    ----------
+    fig :
+        matplotlib figure on which graph will be shown
+    flux : array
+        Flux spectrum data. 2-3 D array. flux[0] = wavelength, flux[1] = flux values. If err=True, flux[2] = error on
+        flux[1]. Could be any 2-3 D data set.
+    err : bool, optional
+        Set to True if data has errors on y.
+
+    Returns
+    -------
+    list of DataRange objects
+
     """
     # need to make some variables and lists globally defined for "onclick" to be able to use them
     global coords
@@ -102,10 +152,14 @@ def def_ranges(fig, flux, err=False):
     ranges_data = []
     for arange in ranges_graph:
         name = arange[0]  # the name of the range is just its number
-        xdata = flux[0][np.argwhere(flux[0] > arange[1])[0]:np.argwhere(flux[0] < arange[2])[-1]]
-        ydata = flux[1][np.argwhere(flux[0] > arange[1])[0]:np.argwhere(flux[0] < arange[2])[-1]]
+        cond = (flux[0] > arange[1]) & (flux[0] < arange[2])
+        xdata = flux[0][cond]
+        ydata = flux[1][cond]
+        #xdata = flux[0][np.argwhere(flux[0] > arange[1])[0]:np.argwhere(flux[0] < arange[2])[-1]]
+        #ydata = flux[1][np.argwhere(flux[0] > arange[1])[0]:np.argwhere(flux[0] < arange[2])[-1]]
         if err is True:
-            ydata_err = flux[2][np.argwhere(flux[0] > arange[1])[0]:np.argwhere(flux[0] < arange[2])[-1]]
+            #ydata_err = flux[2][np.argwhere(flux[0] > arange[1])[0]:np.argwhere(flux[0] < arange[2])[-1]]
+            ydata_err = flux[2][cond]
         else:
             ydata_err = None
 
