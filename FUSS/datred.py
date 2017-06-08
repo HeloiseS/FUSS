@@ -1,40 +1,45 @@
 """
-02 - March - 2017 / H. F. Stevance / fstevance1@sheffield.ac.uk
+08 - June - 2017 / H. F. Stevance / fstevance1@sheffield.ac.uk
 
-datred.py is a sub-module created as part of the FUSS package to help with the data reduction of spectropolarimetric
+datred.py is a module created as part of the FUSS package to help with the data reduction of spectropolarimetric
 data (at the present time only used with FORS2 data)
 
 Pre-requisites:
 -----------------
 os, astropy.io, numpy, math, matplotlib.pyplot, pysynphot, scipy.special
 
-Variable:
----------
-zero_angles = path to the text file containing the chromatic zero angles for FORS2.
-Can be found at: http://www.eso.org/sci/facilities/paranal/instruments/fors/inst/pola.html
+Attributes:
+----------
+zero_angles : string
+    Path to the text file containing the chromatic zero angles for FORS2 (needs updating for you own system).
+    Can be found at: http://www.eso.org/sci/facilities/paranal/instruments/fors/inst/pola.html
 
 Functions:
 ---------
-sort_red(): Creates back-up of the compressed files, uncompresses them, sorts them and re-names them according to the
-naming convention
-required to use with my .cl files during data reduction in IRAF. Returns: None
+sort_red()
+    Creates back-up of the compressed files, uncompresses them, sorts them and re-names them according to the naming
+    convention required to use with my .cl files during data reduction in IRAF. Returns: None
 
-info(): Creates a text file containing useful information on the calibration and data files.
-Must use in folder containing the uncompressed FITS files. Returns: None
+info()
+    Creates a text file containing useful information on the calibration and data files. Must use in folder containing
+    the uncompressed FITS files. Returns: None
 -> Output File Format: Filename, ESO label, Retarder Plate Angle, Exposure time,Airmass, Grism, Bin, number of Pixels,
 1/Gain, Read Out Noise, Date.
 
-hwrpangles(): Creates the file used by lin_specpol to know which images correspond to which HWRP angle. It creates
-separate file
-for the CCSN, zero pol std, and polarised std. The output files are made of 4 columns containing the numbers of
-images corresponding to the 0, 22.5, 45 and 67.5 degree retarder plate angles. 1 set per line.
+hwrpangles()
+    Creates the file used by lin_specpol to know which images correspond to which HWRP angle. It creates separate file
+    for the CCSN, zero pol std, and polarised std. The output files are made of 4 columns containing the numbers of
+    images corresponding to the 0, 22.5, 45 and 67.5 degree retarder plate angles. 1 set per line.
 
-lin_specpol(): Calculates the Stokes parameters and P.A of a data set and writes them out in a text file. Also produces
-a plot showing p, q, u, P.A and Delta epsilon_q and Delta epsilon_u. The plots is not automatically saved.
+lin_specpol():
+    Calculates the Stokes parameters and P.A of a data set and writes them out in a text file. Also produces
+    a plot showing p, q, u, P.A and Delta epsilon_q and Delta epsilon_u. The plots is not automatically saved.
 
-circ_specpol(): Calculates the circular polarisation v and the delta epsilon. Plot not automatically saved.
+circ_specpol():
+    Calculates the circular polarisation v and the delta epsilon. Plot not automatically saved.
 
-flux_spectrum(): Combines all the flux calibrated apertures to create the flux spectrum.
+flux_spectrum():
+    Combines all the flux calibrated apertures to create the flux spectrum.
 """
 
 import os
@@ -53,9 +58,12 @@ zero_angles = get_pkg_data_filename('data/theta_fors2.txt')
 
 def sort_red():
     """
-    Creates back-up of the compressed files, uncompresses them, sorts them and re-names them. Must use the
-    naming convention used here for my .cl files to work properly.
-    :return:
+    Creates back-up of the compressed files, uncompresses them, sorts them and re-names them.
+
+    Notes
+    -----
+    For the .cl files to work properly, the naming convention used by sort_red is essential.
+
     """
     # Creating backups of the original uncompressed files
     os.system('mkdir backup')
@@ -180,12 +188,15 @@ def sort_red():
 
 def info():
     """
-    Creates table containing useful information on the images (taken from the headers). Use in folder containing the
-    uncompressed FITS files.
+    Creates table containing useful information on the images (taken from the headers).
+
+    Notes
+    -----
+    Use in folder containing the uncompressed FITS files.
 
     Output File Format: Filename, ESO label, Retarder Plate Angle, Exposure time,Airmass, Grism, Bin, umber
     of Pixels, 1/Gain, Read Out Noise, Date.
-    :return:
+
     """
     try:
         os.remove('image_info.txt')
@@ -245,26 +256,40 @@ def info():
                 airm = 'None'
 
             with open('image_info.txt', 'a') as f:
-                f.write(filename[:-5].ljust(15)+str(name).ljust(23)+str(angle).ljust(7)+str(exptime).ljust(10)+ str(airm).ljust(8)+str(grism).ljust(12)+binning.ljust(5)+str(size_x).ljust(5)+str(one_over_gain).ljust(7)+str(ron).ljust(5)+str(date)+"\n")
+                f.write(filename[:-5].ljust(15)+str(name).ljust(23)+str(angle).ljust(7)+str(exptime).ljust(10)+
+                        str(airm).ljust(8)+str(grism).ljust(12)+binning.ljust(5)+str(size_x).ljust(5)+
+                        str(one_over_gain).ljust(7)+str(ron).ljust(5)+str(date)+"\n")
 
     os.system("sort image_info.txt -o image_info.txt")  # To have filenames written out  alphabetically
 
     with open('image_info.txt', 'a') as f:  # Just putting labels on columns at end of file
-        f.write('========================================================================================================================= \n')
-        f.write('Filename'.ljust(15)+'ESO label'.ljust(23)+'Angle'.ljust(7)+'EXP.TIME'.ljust(10)+ 'Airmass'.ljust(8)+'Grism'.ljust(12)+'bin'.ljust(5)+'#Pix'.ljust(5)+'1/gain'.ljust(7)+'RON'.ljust(5)+'Date'+"\n")
+        f.write('=========================================================================='
+                '=============================================== \n')
+        f.write('Filename'.ljust(15)+'ESO label'.ljust(23)+'Angle'.ljust(7)+'EXP.TIME'.ljust(10)+ 'Airmass'.ljust(8)+
+                'Grism'.ljust(12)+'bin'.ljust(5)+'#Pix'.ljust(5)+'1/gain'.ljust(7)+'RON'.ljust(5)+'Date'+"\n")
 
 
 def hwrpangles(sn_name = 'CCSN', zeropol_name = 'Zero_', polstd_name='NGC2024'):
     """
-    Creates the file used by lin_specpol to know which images correspond to which HWRP angle. It creates separate file
-    for the CCSN, zero pol std, and polarised std. The output files are made of 4 columns containing the numbers of
-    images corresponding to the 0, 22.5, 45 and 67.5 degree retarder plate angles. 1 set per line.
-    :param sn_name: A string that is unique to the ESO name of the SN, e.g  Default: 'CCSN'
-    :param zeropol_name: A string that is unique to the ESO name of the zero pol std, e.g Default:  'Zero_'
-    :param polstd_name: Same for polarised std, e.g Default: 'NGC2024'. This one is the most likely to change from one
-    observation set to an other. See the info file created using info() tu know what string to give hwrpangles() to be
-    able to differentiate between the SN and the standards.
-    :return:
+    Creates the file used by lin_specpol to know which images correspond to which HWRP angle.
+
+    Notes
+    -----
+    Separate files are created for the CCSN, zero pol std, and polarised std. The output files are made of 4 columns
+    containing the numbers of images corresponding to the 0, 22.5, 45 and 67.5 degree retarder plate angles.
+    1 set of retarder plate angles per line.
+
+    Parameters
+    ----------
+    sn_name : string, optional
+        A string that is unique to the ESO name of the SN, e.g  Default: 'CCSN'
+    zeropol_name : string, optional
+        A string that is unique to the ESO name of the zero pol std, e.g Default:  'Zero_'
+    polstd_name : string, optional
+        Same for polarised std, e.g Default: 'NGC2024'. This one is the most likely to change from one observation set
+        to an other. See the info file created using info() tu know what string to give hwrpangles() to be able to
+        differentiate between the SN and the standards.
+
     """
 
     # We want to make sure that python reads the images in the right order, we also only need to look at the headers
@@ -368,18 +393,29 @@ def hwrpangles(sn_name = 'CCSN', zeropol_name = 'Zero_', polstd_name='NGC2024'):
 
 def lin_specpol(oray='ap2', hwrpafile = 'hwrpangles.txt', e_min_wl = 3775, bayesian_pcorr=True, p0_step = 0.01):
     """
-    Calculates the Stokes parameters and P.A of a data set and writes them out in a text file. Also produces a plot
-    showing p, q, u, P.A and Delta epsilon_q and Delta epsilon_u. The plots is not automatically saved.
-    :param oray: Which aperture corresponds to the ordinary ray: 'ap1' or 'ap2'. Default is 'ap2'.
-    :param hwrpafile: The file telling lin_specpol() which image corresponds to which HWRP angle. Created by hwrpangles
-    (). Default is 'hwrpangles.txt',
-    :param e_min_wl: The first wavelength of the range within which Delta epsilons will be calculated. Default is 3775 (ang).
-    :param bayesian_pcorr: Boolean, if True then the debiasing of p will be done using the bayesian method (J. L. Quinn 2012),
-     if False then the step function method will be used (wang et al 1997). Default is True.
-    :param p0_step: Step size (and starting point) of the p0 distribution. if the step is larger that an observed value
-    of p then the code will fail, and you should decrease the step size. Also increases the run time significantly.
-    Default is 0.01
-    :return:
+    Calculates the Stokes parameters and P.A of a data set and writes them out in a text file.
+
+    Notes
+    -----
+    A plot showing p, q, u, P.A and Delta epsilon_q and Delta epsilon_u is produced. The plots are not automatically
+    saved.
+
+    Parameters
+    ----------
+    oray : string, optional
+        Which aperture corresponds to the ordinary ray: 'ap1' or 'ap2'. Default is 'ap2'.
+    hwrpafile : string, optional
+        The file telling lin_specpol() which image corresponds to which HWRP angle. Created by hwrpangles().
+        Default is 'hwrpangles.txt'
+    e_min_wl : string, optional
+        The first wavelength of the range within which Delta epsilons will be calculated. Default is 3775 (ang).
+    bayesian_pcorr : bool, optional
+        Turns on or off the bayesian p debiasing method (J. L. Quinn 2012). If False then the step function method will
+        be used (wang et al 1997). Default is True.
+    p0_step : float, optional
+        Step size (and starting point) of the p0 distribution. If the step is larger that an observed value of p then
+        the code will fail, and you should decrease the step size. Also increases the run time significantly.
+        Default is 0.01
     """
     if oray=='ap2':
         eray='ap1'
@@ -391,20 +427,32 @@ def lin_specpol(oray='ap2', hwrpafile = 'hwrpangles.txt', e_min_wl = 3775, bayes
     #########################################
         
     def get_data(ls_0, ls_1, ls_2, ls_3):
-        '''
-        For lin_specpol() use only. This takes the flux data from the text files given by IRAF and sorts them in lists
-        for later use.
+        """
+        This takes the flux data from the text files given by IRAF and sorts them in lists for later use.
+
+        Notes
+        -----
+        For lin_specpol() use only.
 
         /!\ start wavelength and dispersion for each data file should be the same /!\
 
-        :param ls_0: list of file number for files containing dat at 0 deg
-        :param ls_1: list of file number for files containing dat at 22.5 deg
-        :param ls_2: list of file number for files containing dat at 45 deg
-        :param ls_3: list of file number for files containing dat at 67.5 deg
-        :return: lists for wl, o and r ray for each angle and errors for o and ray for each angle:
+    `   Parameters
+        ----------
+        ls_0 : list of ints
+            list of file number for files containing dat at 0 deg
+        ls_1 : list of ints
+            list of file number for files containing dat at 22.5 deg
+        ls_2 : list of ints
+            list of file number for files containing dat at 45 deg
+        ls_3: list of ints
+            list of file number for files containing dat at 67.5 deg
+
+        Returns
+        -------
+        Lists for wl, o and r ray for each angle and errors for o and ray for each angle:
         wl, ls_fo0, ls_fe0, ls_fo0_err, ls_fe0_err, ls_fo1, ls_fe1, ls_fo1_err, ls_fe1_err, ls_fo2,
         ls_fe2, ls_fo2_err, ls_fe2_err, ls_fo3, ls_fe3, ls_fo3_err, ls_fe3_err
-        '''
+        """
 
         # Need to do this because python doesn't read files in alphabetical order but in order they
         # are written on the disc
@@ -517,14 +565,26 @@ def lin_specpol(oray='ap2', hwrpafile = 'hwrpangles.txt', e_min_wl = 3775, bayes
         return wl, ls_fo0, ls_fe0, ls_fo0_err, ls_fe0_err, ls_fo1, ls_fe1, ls_fo1_err, ls_fe1_err, ls_fo2, ls_fe2, ls_fo2_err, ls_fe2_err, ls_fo3, ls_fe3, ls_fo3_err, ls_fe3_err
 
     def norm_flux(fo, fe, fo_r, fe_r):
-        '''
+        """
         For lin_specpol() use only. Finds normalised flux and error.
-        :param fo: ordinary spectrum
-        :param fe: extra-ordinary spectrum
-        :param fo_r: ordinary error spectrum
-        :param fe_r: extra-ordinary error spectrum
-        :return: F and F_r the normalised flux and error on normalised flux
-        '''
+
+        Parameters
+        ----------
+        fo : array
+            Array containing the ordinary spectrum
+        fe : array
+            Array containing the extra-ordinary spectrum
+        fo_r : array
+            Array containing the ordinary error spectrum
+        fe_r : array
+            Array containing the extra-ordinary error spectrum
+
+        Returns
+        -------
+        arrays
+            The F and F_r arrays (the normalised flux and error on normalised flux)
+
+        """
         F = (fo - fe)/(fo + fe)
         F_r = np.array([])
         for i in range(len(fo)):
@@ -533,31 +593,50 @@ def lin_specpol(oray='ap2', hwrpafile = 'hwrpangles.txt', e_min_wl = 3775, bayes
         return F, F_r
 
     def specpol(wl, fo0, fe0, fo0_r, fe0_r, fo1, fe1, fo1_r, fe1_r, fo2, fe2, fo2_r, fe2_r, fo3, fe3, fo3_r, fe3_r):
-        '''
-        For lin_specpol() use only
+        """
         Finds the p, q, u, theta and errors on these quantities for a set of spectropolarimetric data.
-        :param wl: Wavelengths
-        :param fo0: o ray at 0 deg
-        :param fe0: e ray at 0 deg
-        :param fo0_r: error on o ray at 0 deg
-        :param fe0_r: error on e ray at 0 deg
-        :param fo1:
-        :param fe1:
-        :param fo1_r:
-        :param fe1_r:
-        :param fo2:
-        :param fe2:
-        :param fo2_r:
-        :param fe2_r:
-        :param fo3:
-        :param fe3:
-        :param fo3_r:
-        :param fe3_r:
-        :param delta_e: array: epsilon at each wl bin.
-        :param avg_e: average epsilon
-        :param stdv_e: standard dev of epsilon
-        :return: p, q, and u in precent, with associated errors, as well as theta in degrees ( 0 < theta < 180) and its errors.
-        '''
+
+        Notes
+        -----
+        For lin_specpol() use only
+
+        Parameters
+        ----------
+        wl : array
+            Wavelengths
+        fo0 : array
+            o ray at 0 deg
+        fe0 : array
+            e ray at 0 deg
+        fo0_r : array
+            error on o ray at 0 deg
+        fe0_r : array
+            error on e ray at 0 deg
+        fo1 : array
+        fe1 : array
+        fo1_r : array
+        fe1_r : array
+        fo2 : array
+        fe2 : array
+        fo2_r : array
+        fe2_r : array
+        fo3 : array
+        fe3 : array
+        fo3_r : array
+        fe3_r : array
+        delta_e : array
+            Epsilon at each wl bin.
+        avg_e : float
+            Average epsilon
+        stdv_e : float
+            Standard dev of epsilon
+
+        Returns
+        -------
+        arrays
+            p, q, and u in percent, with associated errors, as well as theta in degrees ( 0 < theta < 180) and its
+            errors.
+        """
 
         # Calculating the normalised fluxes for all 4 HWRP angles.
         F0,F0_r = norm_flux(fo0, fe0, fo0_r, fe0_r)
@@ -812,10 +891,17 @@ def lin_specpol(oray='ap2', hwrpafile = 'hwrpangles.txt', e_min_wl = 3775, bayes
 def circ_specpol(oray='ap2', hwrpafile = 'hwrpangles_v.txt', e_min_wl = 3775):
     """
     Calculates the circular polarisation v and epsilon_v for all data sets. The plot is not automatically saved.
-    :param oray: Which aperture corresponds to the ordinary ray: 'ap1' or 'ap2'. Default is 'ap2'.
-    :param hwrpafile: The file telling circ_specpol() which image corresponds to which HWRP angle. Created by hwrpangles(). Default is 'hwrpangles_v.txt', 
-    :param e_min_wl: The first wavelength of the range within which Delta epsilons will be calculated. Default is 3775 (ang).
-    :return:
+
+    Parameters
+    ----------
+    oray : string
+        Which aperture corresponds to the ordinary ray: 'ap1' or 'ap2'. Default is 'ap2'.
+    hwrpafile : string
+        The file telling circ_specpol() which image corresponds to which HWRP angle. Created by hwrpangles().
+        Default is 'hwrpangles_v.txt',
+    e_min_wl : int
+        The first wavelength of the range within which Delta epsilons will be calculated. Default is 3775 (ang).
+
     """
     if oray=='ap2':
         eray='ap1'
@@ -827,18 +913,28 @@ def circ_specpol(oray='ap2', hwrpafile = 'hwrpangles_v.txt', e_min_wl = 3775):
     #########################################
         
     def get_data(ls_0, ls_1):
-        '''
-        For lin_specpol() use only. This takes the flux data from the text files given by IRAF and sorts them in lists
-        for later use.
+        """
+        This takes the flux data from the text files given by IRAF and sorts them in lists for later use.
 
+        Notes
+        -----
+        For lin_specpol() use only.
         /!\ start wavelength and dispersion for each data file should be the same /!\
 
-        :param ls_0: list of file number for files containing dat at 45 deg
-        :param ls_1: list of file number for files containing dat at 315 deg
-        :return: lists for wl, o and r ray for each angle and errors for o and ray for each angle:
+        Parameters
+        ----------
+        ls_0 : list of ints
+            list of file number for files containing dat at 45 deg
+        ls_1 : list of ints
+            list of file number for files containing dat at 315 deg
+
+        Returns
+        -------
+        lists of lists
+            lists for wl, o and e ray for each angle and errors for o and ray for each angle:
         wl, ls_fo0, ls_fe0, ls_fo0_err, ls_fe0_err, ls_fo1, ls_fe1, ls_fo1_err, ls_fe1_err, ls_fo2,
         ls_fe2, ls_fo2_err, ls_fe2_err, ls_fo3, ls_fe3, ls_fo3_err, ls_fe3_err
-        '''
+        """
 
         # Need to do this because python doesn't read files in alphabetical order but in order they
         # are written on the disc
@@ -903,13 +999,27 @@ def circ_specpol(oray='ap2', hwrpafile = 'hwrpangles_v.txt', e_min_wl = 3775):
         return wl, ls_fo0, ls_fe0, ls_fo0_err, ls_fe0_err, ls_fo1, ls_fe1, ls_fo1_err, ls_fe1_err
 
     def normalized_V(wl, fo, fo_err, fe, fe_err):
-        '''
-        FINDS THE NORMALIZED V
-        :param wl: Array or list containing the wavelengths
-        :param fo and fo_err: Array or list containing the values of the ordinary flux (fo) and its uncertainties(fo_err)
-        :param fe and fe_err: Array or list containing the values of the extra-ordinary flux (fe) and its errors(fe_err)
-        :return: returns the arrays v and v_err containing the values of the normalized V Stokes parameter and its errors at each wavelength
-        '''
+        """
+        Finds the normalized v
+
+        Parameters
+        ----------
+        wl : array
+            Array containing the wavelengths
+        fo : array
+            Array containing the values of the ordinary flux
+        fo_err : array
+            Array containing the values of the uncertainties on the ordinary flux
+        fe : array
+            Array containing the values of the extra-ordinary flux
+        fe_err : array
+            Array containing the values of the uncertainties on the extra-ordinary flux
+
+        Returns
+        -------
+        arrays
+            2 Arrays containing the values of the normalized V Stokes parameter and its errors at each wavelength
+        """
 
         v = np.array([])
         v_err = np.array([])
@@ -923,15 +1033,25 @@ def circ_specpol(oray='ap2', hwrpafile = 'hwrpangles_v.txt', e_min_wl = 3775):
         return v, v_err
 
     def v_1set(wl, ls_fo0, ls_fe0, ls_fo0_err, ls_fe0_err, ls_fo1, ls_fe1, ls_fo1_err, ls_fe1_err):
-        '''
-        CALCULATES V AND V_ERR FOR A SET OF OBSERVATION (I.E 2 FRAMES AT OPT. ANGLE -45 AND 45 DEG.)
+        """
+        Calculate v and the error on v for a set of observations.
 
+        Notes
+        -----
         /!\ Requires the functions GET_DATA() and NORMALIZED_V() /!\
 
-        :param num2: num in file name corresponding to observation at +45 deg
-        :param num1: num in file name corresponding to observation at -45 deg
-        :return: wl, v, v_err
-        '''
+        Parameters
+        ----------
+        num2 : int
+            Number in file name corresponding to observation at +45 deg
+        num1 : int
+            Number in file name corresponding to observation at -45 deg
+
+        Returns
+        -------
+        arrays
+            wl, v, v_err
+        """
         v0, v0_err = normalized_V(wl, ls_fo0, ls_fo0_err, ls_fe0, ls_fe0_err)
         v1, v1_err = normalized_V(wl, ls_fo1, ls_fo1_err, ls_fe1, ls_fe1_err)
 
@@ -951,19 +1071,29 @@ def circ_specpol(oray='ap2', hwrpafile = 'hwrpangles_v.txt', e_min_wl = 3775):
             v_err.append(v_i_err)
             #eps= eps*10
             
-        eps_crop = eps[np.argwhere(wl>e_min_wl)[0]:]
+        cond = (wl>e_min_wl)
+        eps_crop = eps[cond]
         eps_avg = np.average(eps_crop)
         eps_std = np.std(eps_crop)
 
         return v, v_err, eps, eps_avg, eps_std
 
     def wghtd_mean(values, err):
-        '''
-        WEIGHTED MEAN (WITH ERRORS NOT WEIGHTS) AND ERROR OF THE MEAN
-        :param values: array of the values
-        :param err: array of the errors on the values, must have same dimension as 'values'
-        :return: mean, err_mean
-        '''
+        """
+        Weighted mean and error on the mean
+
+        Parameters
+        ----------
+        values : array
+            Array of the values
+        err : array
+            Array of the errors on the values, must have same dimension as 'values'.
+
+        Returns
+        -------
+        floats
+            mean, err_mean
+        """
         num_to_sum = []
         den_to_sum = []
         for i in xrange(len(values)):
@@ -975,7 +1105,6 @@ def circ_specpol(oray='ap2', hwrpafile = 'hwrpangles_v.txt', e_min_wl = 3775):
         err_mean = np.sqrt( 1/(np.sum(den_to_sum)) )
 
         return mean, err_mean
-
 
     #########################################
     #                SPECPOL MAIN           #
@@ -1018,7 +1147,6 @@ def circ_specpol(oray='ap2', hwrpafile = 'hwrpangles_v.txt', e_min_wl = 3775):
         vi, vi_err = wghtd_mean(v_to_avg, verr_to_avg)
         vf=np.append(vf, vi)
         vf_err=np.append(vf_err,vi_err)
-   
 
     # ###### CREATING THE TEXT FILE ###### #
     pol_file = raw_input('What do you want to name the polarisation file? ')
@@ -1070,10 +1198,15 @@ def circ_specpol(oray='ap2', hwrpafile = 'hwrpangles_v.txt', e_min_wl = 3775):
 def lin_vband(oray = 'ap2', hwrpafile = 'hwrpangles.txt'):
     """
     This creates synthetic V band linear polarimetry data from the spectropolarimetric data.
-    :param hwrpafile: The file telling lin_specpol() which image corresponds to which HWRP angle. Created by hwrpangles().
-    Default is 'hwrpangles.txt'.
-    :param oray: Which aperture is the oridnary ray. Shoudl be either 'ap1' or 'ap2'. Default is 'ap2'
-    :return:
+
+    Parameters
+    ----------
+    hwrpafile : string, optional
+        The file telling lin_specpol() which image corresponds to which HWRP angle. Created by hwrpangles().
+        Default is 'hwrpangles.txt'.
+    oray : string, optional
+        Which aperture is the oridnary ray. Shoudl be either 'ap1' or 'ap2'. Default is 'ap2'
+
     """
     S.setref(area=10053097)  # area in cm^2 - has to be set cuz different to HST
 
@@ -1099,7 +1232,6 @@ def lin_vband(oray = 'ap2', hwrpafile = 'hwrpangles.txt'):
     def vpol(fo0, fo1, fo2, fo3, fe0, fe1, fe2, fe3, fo0_r, fe0_r,fo1_r,fe1_r,fo2_r,fe2_r,fo3_r,fe3_r, wl):
         """
         Similar to specpol() in lin_specpol(), but for V-band polarisation.
-        :return:
         """
 
         # Normalised fluxes
@@ -1282,7 +1414,10 @@ def lin_vband(oray = 'ap2', hwrpafile = 'hwrpangles.txt'):
 def flux_spectrum():
     """
     Combines all the flux calibrated apertures to create the flux spectrum.
-    :return: Nothing. Creates a text file.
+
+    Notes
+    -----
+    Creates a text file with 3 columns columns: wavelength flux errors
     """
     flux = []
     flux_err = []
