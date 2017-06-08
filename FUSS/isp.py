@@ -143,20 +143,33 @@ def from_emline(filename_pol, filename_spctr, wlmin=4400, cont2ranges = False):
 
 def from_range(filename_pol, wlmin=None, wlmax=None):
     """
-    Estimates ISP from polarisation within a range either defined from parameters or interactively. If wlmin and wlmax are not given
-    a plot will be displayed for the user to indicate the location of the range.
-    :param filename_pol: Name of the text file were the data is located.
-    :param wlmin: Start of wavelength range. Default is None.
-    :param wlmax: End of wavelength range. Default is None.
-    :return: pisp, pispr, qisp, qispr, uisp, uispr
+    Estimates ISP from polarisation within a range either defined from parameters or interactively.
+
+    Notes
+    -----
+    If wlmin and wlmax are not given a plot will be displayed for the user to indicate the location of the range.
+
+    Parameters
+    ----------
+    filename_pol : string
+        Name of the text file were the polarisation data is located.
+    wlmin : int
+        Start of wavelength range. Default is None.
+    wlmax : int
+        End of wavelength range. Default is None.
+
+    Returns
+    -------
+    tuple of floats
+        pisp, pispr, qisp, qispr, uisp, uispr
     """
     pol = F.PolData('pol', filename_pol , wlmin=3500 )
     ls = [pol.q, pol.qr, pol.u, pol.ur]
     crop = []
-
+    cond = (pol.wlp > wlmin) & (pol.wlp < wlmax)
     if wlmin is not None:
         for val in ls:
-            valn = val[np.argwhere(pol.wlp > wlmin)[0]:np.argwhere(pol.wlp < wlmax)[-1]]
+            valn = val[cond]
             crop.append(valn)
     else:
         fig = plt.figure()
@@ -165,7 +178,7 @@ def from_range(filename_pol, wlmin=None, wlmax=None):
         ax.plot(pol.wlp, pol.u)  # plotting flux spectrum
         isp_range = ig.def_ranges(fig, [pol.wlp,pol.q], err = False)
         for val in ls:
-            valn = val[np.argwhere(pol.wlp > isp_range[0].start)[0]:np.argwhere(pol.wlp < isp_range[0].end)[-1]]
+            valn = val[cond]
             crop.append(valn)
 
     # Values of p, q, u, a and their error for ISP
@@ -193,6 +206,7 @@ def from_range(filename_pol, wlmin=None, wlmax=None):
           + "\n P.A isp = " + str(aisp) + " +/- " + str(aispr)
 
     return pisp, pispr, qisp, qispr, uisp, uispr
+
 
 def debias_p(p, pr, q=None, qr=None, u=None, ur=None, bayesian_pcorr = True, p0_step = 0.01):
     #  If bayesian_pcorr is False, P will be debiased as in Wang et al. 1997 using a step function
