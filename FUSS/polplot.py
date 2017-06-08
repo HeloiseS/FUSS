@@ -1,11 +1,12 @@
 """
-13 - Jan - 2017 / H.F.Stevance / fstevance1@sheffield.ac.uk
+8 - June - 2017 / H.F.Stevance / fstevance1@sheffield.ac.uk
 
 polplot.py is a submodule of the FUSS package. It is used to create polar plots.
 
 Pre-requisites:
 --------------
-numpy, math, matplotlib.transforms, mpl_toolkits.axisartist.floating_axes, mpl_toolkits.axisartist.angle_helper, matplotlib.projections, mpl_toolkits.axisartist.grid_finder
+numpy, math, matplotlib.transforms, mpl_toolkits.axisartist.floating_axes, mpl_toolkits.axisartist.angle_helper,
+matplotlib.projections, mpl_toolkits.axisartist.grid_finder
 
 Functions:
 ----------
@@ -175,6 +176,7 @@ def axis(fig, loc=111, num_ticks=1, phot_vel=None, vel_lim=[0, 30000], ang_grid 
     
     return aux_ax
 
+
 def datum(pa_start, pa_end, vel):
     """
     Creates one datum that can then be plotted on the polar axis or axes created.
@@ -190,6 +192,7 @@ def datum(pa_start, pa_end, vel):
     vel1[:]=m.fabs(vel)
 
     return angle_range, vel1
+
 
 def data(pa, pa_r, vel):
     pa_ranges=np.array([])
