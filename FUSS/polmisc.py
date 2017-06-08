@@ -414,14 +414,11 @@ class PolData(object):
     ----------
     name : str
         A short handle to make your data object recognisable (e.g. 'ep1', '14ad')
-
     poldata : str or tuple
         The polarisation data can be imported from a text file containing only the data, where
         the column order is: wavelength p p_err q q_err u u_err a a_err.
-
         Alternatively a tuple of arrays containing the data can be provided. Make sure the order
         of the arrays in the tuple corresponds to wavelength p p_err q q_err u u_err a a_err.
-
     wlmin : int, optional
         Minimum wavelength cutoff
     wlmax : int, optional
