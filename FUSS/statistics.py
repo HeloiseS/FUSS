@@ -141,7 +141,10 @@ def draw_ellipse(q,u, a, ratio, alpha_dom ):
     :return: ellipse. to use as input in add_artist() [a matplotlib.axes function]
     """
     centre=[np.average(q),np.average(u)]
-    ellipse = Ellipse(centre, a, ratio*a, alpha_dom, facecolor = 'none', lw=2, alpha=0.8, ls='-.',zorder=1000)
+    ellipse = Ellipse(centre, a, ratio*a, alpha_dom, 
+                      facecolor = 'none', edgecolor='k',
+                      lw=2, alpha=0.8, 
+                      ls='-.', zorder=1000)
     return ellipse
     
 # ##################################### Pearson Correlation ###################################### #

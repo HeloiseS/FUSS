@@ -857,7 +857,7 @@ class PolData(object):
         ur_crop = self.ur[cond]
 
         # #################### CREATING THE PLOT ########################
-        plt.set_cmap('plasma') # Plasma is perceptually uniform. Otherwise use 'jet'
+        plt.set_cmap('jet') 
         if wlrest is None:
             # Defining the min and max wavelength, which are going to be the beginning and end of the colour map
             wlmin = min(wl_crop)
