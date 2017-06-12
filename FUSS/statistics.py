@@ -1,7 +1,7 @@
 """
-20 -  March - 2017 / H. F. Stevance / fstevance1@sheffield.ac.uk
+12 -  June - 2017 / H. F. Stevance / fstevance1@sheffield.ac.uk
 
-stat.py is a sub-module of the FUSS package. It does statistics stuff.
+stat.py is a module of the FUSS package. It does statistics stuff.
 
 Pre-requisites:
 ---------------
@@ -10,6 +10,9 @@ numpy, math, matplotlib.patches, scipy.odr
 Functions (by sections):
 ------------------------
 For input details check docstrings of individual functions.
+
+# ########### Chi Squared ######### #
+chi2(): Finds the chi-squared (or reduced chi-squared)
 
 # ######### Covariance Matrix ######### #
 cov_el(args): cov_el calculates and returns the value of 1 element of the covariance matrix
@@ -36,6 +39,45 @@ import numpy as np
 import math as m
 from matplotlib.patches import Ellipse
 from scipy.odr import ODR, Model, Data, RealData, odr, Output
+
+
+# ############################# Chi Squared #################### #
+
+
+def chi2(data, data_r, model, dof=1):
+    """
+    Finds the chi squared (or reduced chi squared)
+
+    Notes
+    -----
+    The data, data_r and model arrays must have the same size.
+
+    Parameters
+    ----------
+    data : array
+        Array containing the data
+    data_r : array
+        Array containing the errors (on the data)
+    model : array
+        Array containing the model values
+    dof : int, optional
+        Numbers of degrees of freedom
+
+    Raises
+    ------
+    TypeError('The number of degrees of freedom (dof) should be an integer')
+
+    Returns
+    -------
+    float
+        The chi squared if the number of degrees of freedom was not given.
+        The reduced chi-squared if the number of degrees of freedom was given.
+
+    """
+    if type(dof) != int:
+        raise TypeError('The number of degrees of freedom (dof) should be an integer')
+    chi_squared = np.sum((data-model)**2/(data_r**2))
+    return chi_squared/dof
 
 # ############################# Covariance Matrix #################### #
 
