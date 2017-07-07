@@ -230,10 +230,13 @@ def info():
             try:
                 angle = hdulist[0].header['HIERARCH ESO INS RETA2 ROT']
             except:
-                try:
-                    angle = str(hdulist[0].header['HIERARCH ESO INS RETA4 ROT'])+'*'
+                try: 
+                    angle = hdulist[0].header['HIERARCH ESO INS RETA2 POSANG']
                 except:
-                    angle = 'None'
+                    try:
+                        angle = str(hdulist[0].header['HIERARCH ESO INS RETA4 ROT'])+'*'
+                    except:
+                        angle = 'None'
 
             date = hdulist[0].header['DATE-OBS']
 
@@ -348,10 +351,12 @@ def hwrpangles(sn_name = 'CCSN', zeropol_name = 'Zero_', polstd_name='NGC2024'):
                 angle = hdulist[0].header['HIERARCH ESO INS RETA2 ROT']
             except:
                 try:
-                    angle = str(hdulist[0].header['HIERARCH ESO INS RETA4 ROT'])+'*'
-                    print angle
+                    angle = hdulist[0].header['HIERARCH ESO INS RETA2 POSANG']
                 except:
-                    angle = 'None'
+                    try:
+                        angle = str(hdulist[0].header['HIERARCH ESO INS RETA4 ROT'])+'*'
+                    except:
+                        angle = 'None'
 
             if angle == 0.0:
                 ls_0.append(name[8:-5])
