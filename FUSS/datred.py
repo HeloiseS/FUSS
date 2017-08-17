@@ -593,7 +593,7 @@ def lin_specpol(oray='ap2', hwrpafile = 'hwrpangles.txt', e_min_wl = 3775, bayes
         F = (fo - fe)/(fo + fe)
         F_r = np.array([])
         for i in range(len(fo)):
-            F_ri = m.fabs(F[i])*np.sqrt(((fo_r[i]**2)+(fe_r[i]**2))*((1/(fo[i]-fe[i])**2)+(1/(fo[i]+fe[i])**2)))
+            F_ri = m.fabs(F[i]) * np.sqrt( ( (fo_r[i]**2) + (fe_r[i]**2) ) * ( ( 1/(fo[i]-fe[i])**2 )+ (1/(fo[i]+fe[i])**2 ) ) )
             F_r=np.append(F_r,F_ri)
         return F, F_r
 
@@ -688,14 +688,17 @@ def lin_specpol(oray='ap2', hwrpafile = 'hwrpangles.txt', e_min_wl = 3775, bayes
 
 
         # Now calculating epsilon q and epsilon u and Delta epsilon.
-        eq = 0.5*F0 + 0.5*F2
-        eu = 0.5*F1 + 0.5*F3
-        delta_e = eq-eu
+        eq = (0.5*F0 + 0.5*F2)*100
+        eu = (0.5*F1 + 0.5*F3)*100
+        delta_e = eq-eu #in percent
         stdv_dequ=[]
-        for i in xrange(len(wl)):
-            if wl[i] > e_min_wl:
-                dequ=eq[i]-eu[i]
-                stdv_dequ.append(dequ)
+        try:
+            for i in xrange(len(wl)):
+                if wl[i] > e_min_wl:
+                    dequ=eq[i]-eu[i]
+                    stdv_dequ.append(dequ)
+        except IndexError:
+            dequ = eq-eu
 
         stdv_e = np.std(stdv_dequ)
         avg_e = np.average(stdv_dequ)
@@ -719,7 +722,7 @@ def lin_specpol(oray='ap2', hwrpafile = 'hwrpangles.txt', e_min_wl = 3775, bayes
     delta_es=[]
     avg_es=[]
     stdv_es=[]
-
+    
     # Each index in those lists refers to 1 set of values for all wavelength bins wl. Each set of Stokes parameters
     # is stored in lists defined above so that we can then take the average for each bin, and the standard deviation
     # which will be used as the error.
@@ -762,8 +765,10 @@ def lin_specpol(oray='ap2', hwrpafile = 'hwrpangles.txt', e_min_wl = 3775, bayes
         urf= np.append(urf, np.sqrt(1/np.sum(ur_to_sum)))
 
         # My final Stokes parameters, doing a weighted average. The weights are 1/stdv**2
-        qf= np.append(qf, np.average(q_to_avg, weights=1/(qr_to_sum**2)))
-        uf= np.append(uf, np.average(u_to_avg, weights=1/(ur_to_sum**2)))
+        #qf= np.append(qf, np.average(q_to_avg, weights=1/(qr_to_sum**2)))
+        #uf= np.append(uf, np.average(u_to_avg, weights=1/(ur_to_sum**2)))
+        qf= np.append(qf, np.average(q_to_avg, weights=qr_to_sum))
+        uf= np.append(uf, np.average(u_to_avg, weights=ur_to_sum))
 
     # Once I have my final Stokes parameters I can calculate the final degree of polarisation (and error).
     pf = np.sqrt(qf**2 + uf**2)
@@ -824,6 +829,9 @@ def lin_specpol(oray='ap2', hwrpafile = 'hwrpangles.txt', e_min_wl = 3775, bayes
         os.remove(pol_file)
     except:
          print 'kittens'
+
+    print len(wl), len(pfinal), len(prf), len(qf), len(qrf), len(uf), len(urf), len(thetaf)
+    
     for l in xrange(len(wl)):
         with open(pol_file, 'a') as pol_f:
             pol_f.write(str(wl[l])+'    '+str(pfinal[l])+'    '+str(prf[l])+'    '+str(qf[l])+'    '+str(qrf[l])+'    '+str(uf[l])+'    '+str(urf[l])+'    '+str(thetaf[l])+'    '+str(thetarf[l])+'\n')
@@ -882,7 +890,7 @@ def lin_specpol(oray='ap2', hwrpafile = 'hwrpangles.txt', e_min_wl = 3775, bayes
         print "Average Delta epsilon =",avg_es[i],"STDV =",stdv_es[i]
 
     axarr[4].set_ylabel(r"$\Delta \epsilon", fontsize = 16)
-    axarr[4].set_ylim([-0.4,0.4])
+    axarr[4].set_ylim([-4.0,4.0])
     plt.xlim([3500,10000])
 
     plt.show()

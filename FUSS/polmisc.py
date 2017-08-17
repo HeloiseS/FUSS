@@ -705,7 +705,7 @@ class PolData(object):
                   + "\n P.A isp = " + str(self.aisp) + " +/- " + str(self.aispr) + "\n"
             self.gradq = None # this will be used as a condition for the method of isp removal in rmv_isp
         elif constisp_params is None:
-            self.gradq, self.constq, self.gradu, self.constu = linearisp_params
+            self.gradq, self.constq, self.gradu, self.constu, self.cov = linearisp_params
             self.qisp = None # this will be used as a condition for the method of isp removal in rmv_isp
         return
 
@@ -736,6 +736,7 @@ class PolData(object):
         if self.qisp is None:
             new_stokes, __ = isp.linear_isp(self.wlp, self.gradq, self.constq,
                                             self.gradu, self.constu,
+                                            self.cov[0], self.cov[1], #respectively covariance of q parameters and u parameters
                                             self.q, self.qr,
                                             self.u, self.ur,
                                             bayesian_pcorr=bayesian_pcorr, p0_step=p0_step)

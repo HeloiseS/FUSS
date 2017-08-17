@@ -245,9 +245,9 @@ def debias_p(p, pr, q=None, qr=None, u=None, ur=None, bayesian_pcorr = True, p0_
         return pfinal
 
 
-def linear_isp(wlp, gradq, constq, gradu, constu, q=None, qr=None, u=None, ur=None, bayesian_pcorr=False, p0_step = 0.01):
+def linear_isp(wlp, gradq, constq, gradu, constu, covq=0, covu=0, q=None, qr=None, u=None, ur=None, bayesian_pcorr=False, p0_step = 0.01):
     """
-    Calculates a linear and can also remove it from polarisation data if provided
+    Calculates a linear isp and can also remove it from polarisation data if provided
     :param wlp: 1D Array of wavelength bins of final desired isp (often the wavelength bins fo your pol data)
     :param gradq: [gradient of q isp, error on gradient]
     :param constq: [intercept of q isp, error on intercept]
@@ -277,8 +277,8 @@ def linear_isp(wlp, gradq, constq, gradu, constu, q=None, qr=None, u=None, ur=No
     for wl in wlp:
         qisp = np.append(qisp, gradq[0]*wl+constq[0])
         uisp = np.append(uisp, gradu[0]*wl+constu[0])
-        qisp_r = np.append(qisp_r, np.sqrt((gradq[1]*wl)**2 + constq[1]**2))
-        uisp_r = np.append(uisp_r, np.sqrt((gradu[1]*wl)**2 + constu[1]**2))
+        qisp_r = np.append(qisp_r, np.sqrt((gradq[1]*wl)**2 + constq[1]**2)+2*wl*covq)
+        uisp_r = np.append(uisp_r, np.sqrt((gradu[1]*wl)**2 + constu[1]**2)+2*wl*covq)
 
     isp = [qisp, qisp_r, uisp, uisp_r]
 
