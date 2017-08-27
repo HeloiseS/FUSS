@@ -42,6 +42,7 @@ flux_spectrum():
     Combines all the flux calibrated apertures to create the flux spectrum.
 """
 # TODO: internal functions name _internal_function()
+from __future__ import division
 import os
 from astropy.io import fits
 import numpy as np
@@ -370,7 +371,7 @@ def hwrpangles(sn_name = 'CCSN', zeropol_name = 'Zero_', polstd_name='NGC2024'):
                 ls_v_0.append(name[8:-5])
             if angle == '315.0*':
                 ls_v_1.append(name[8:-5])
-        print ls_v_0, ls_v_1
+
 
         try:
             os.remove(output_name+'.txt')
@@ -396,7 +397,7 @@ def hwrpangles(sn_name = 'CCSN', zeropol_name = 'Zero_', polstd_name='NGC2024'):
 # ################# SPECPOL. IT'S BIG WITH NESTED FUNCTIONS - MAYBE BAD CODE, BUT IT WORKS ####################### #
 
 
-def lin_specpol(oray='ap2', hwrpafile = 'hwrpangles.txt', e_min_wl = 3775, bayesian_pcorr=True, p0_step = 0.01):
+def lin_specpol(oray='ap2', hwrpafile = 'hwrpangles.txt', bin_size = None, e_min_wl = 3775, bayesian_pcorr=False, p0_step = 0.01):
     """
     Calculates the Stokes parameters and P.A of a data set and writes them out in a text file.
 
@@ -412,11 +413,13 @@ def lin_specpol(oray='ap2', hwrpafile = 'hwrpangles.txt', e_min_wl = 3775, bayes
     hwrpafile : string, optional
         The file telling lin_specpol() which image corresponds to which HWRP angle. Created by hwrpangles().
         Default is 'hwrpangles.txt'
+    bin_size : int, optional
+        Size of the wavelength bins in Angstrom. Default is 15A.
     e_min_wl : string, optional
         The first wavelength of the range within which Delta epsilons will be calculated. Default is 3775 (ang).
     bayesian_pcorr : bool, optional
         Turns on or off the bayesian p debiasing method (J. L. Quinn 2012). If False then the step function method will
-        be used (wang et al 1997). Default is True.
+        be used (wang et al 1997). Default is False. Does not work if p large and errors small.
     p0_step : float, optional
         Step size (and starting point) of the p0 distribution. If the step is larger that an observed value of p then
         the code will fail, and you should decrease the step size. Also increases the run time significantly.
@@ -569,6 +572,102 @@ def lin_specpol(oray='ap2', hwrpafile = 'hwrpangles.txt', e_min_wl = 3775, bayes
 
         return wl, ls_fo0, ls_fe0, ls_fo0_err, ls_fe0_err, ls_fo1, ls_fe1, ls_fo1_err, ls_fe1_err, ls_fo2, ls_fe2, ls_fo2_err, ls_fe2_err, ls_fo3, ls_fe3, ls_fo3_err, ls_fe3_err
 
+    def rebin(wl, f, r, bin_siz=bin_size):
+        """
+        To rebin my flux spectra
+
+        Parameters
+        ----------
+        wl : array
+            1D array containing the wavelengths to be rebinned
+        f : array
+            1D array containing the fluxes to be rebinned
+        r : array
+            1D array containing the errors on the fluxes to be rebinned
+        bin_siz : int
+            Size of the new bins in Angstrom.
+
+        Returns
+        -------
+            tuple of 1D arrays: wl, f, err all rebinned to the new bin size
+        if bin_siz is None:
+            print "No binning"
+            return wl, f, r
+        """
+        wl = np.array(wl)
+        f = np.array(f)
+        r = np.array(r)
+        small_bin_sizes = []
+
+        bins_f = np.zeros(int((max(wl)-min(wl))/bin_siz)+1) # new flux bins, empty for now
+        bins_w = np.zeros(int((max(wl)-min(wl))/bin_siz)+1) # new error bins, empty for now
+
+        weights = 1/(r**2)
+
+        for i in range(len(wl)-1):
+            n = int((wl[i]-min(wl))/bin_siz) # n is the number of the new bin
+            small_bin_sizes.append((wl[i+1]-wl[i])) # filling list of small bin sizes
+
+        bin_centers = [(min(wl))+bin_siz*n for n in range(len(bins_f))] # finding the new bin centers
+
+        bin_edges = [bin_centers[0]]+[bin1 + bin_siz for bin1 in bin_centers] # finding the new bin edges
+
+        ind_edge = [] # in this list I'll put the index of the array wl corresponding to the wavelength values
+                      # that are close to the bin edges.
+
+        for edge in bin_edges:
+            i_wl_at_edge = min(range(len(wl[:-1])), key=lambda i: abs(edge-wl[i]))
+            #this is to find the small bin that is closest to the edge of the new bin
+            #print wl[i_wl_at_edge], small_bin_sizes[i_wl_at_edge]
+            ind_edge.append(i_wl_at_edge)
+
+        for i in range(len(wl)):
+            n = int((wl[i]-min(wl))/bin_siz)
+            if i in ind_edge:
+                j = ind_edge.index(i) # finding index j of the wavelength index i I am interested in
+                edge = bin_edges[j] # the edge to compare to wl[i] will then be at bin_edges[j]
+
+                if wl[i] < edge:
+                    frac_overlap = (wl[i]+small_bin_sizes[i]/2-edge)/(small_bin_sizes[i])
+                    try:
+                        bins_f[n] += f[i]*weights[i]*(1-frac_overlap)
+                        bins_w[n] += weights[i]*(1-frac_overlap)
+                        bins_f[n+1] += f[i]*weights[i]*frac_overlap
+                        bins_w[n+1] += weights[i]*frac_overlap
+
+                    except IndexError:
+                        print"Index Error at ", wl[i]
+                        pass
+
+                elif wl[i] > edge:
+                    frac_overlap = (wl[i]+small_bin_sizes[i]/2-edge)/(small_bin_sizes[i])
+                    try:
+                        bins_f[n] += f[i]*weights[i]*frac_overlap
+                        bins_w[n] += weights[i]*frac_overlap
+                        bins_f[n+1] += f[i]*weights[i]*(1-frac_overlap)
+                        bins_w[n+1] += weights[i]*(1-frac_overlap)
+
+                    except IndexError:
+                        print"Index Error at ", wl[i]
+                        pass
+
+            else:
+                try:
+                    bins_f[n] += f[i]*weights[i]
+                    bins_w[n] += weights[i]
+                except IndexError:
+                    print"Index Error at ", wl[i]
+                    pass
+
+        for i in range(len(bin_centers)):
+            if bins_w[i] == 0.0:
+                print bin_centers[i], bins_w[i]
+
+        bins_f[:-1] /= bins_w[:-1]  # normalise weighted values by sum of weights to get weighted average
+        bins_err = np.sqrt(1/bins_w[:-1])
+
+        return bin_centers[:-1], bins_f[:-1], bins_err
+
     def norm_flux(fo, fe, fo_r, fe_r):
         """
         For lin_specpol() use only. Finds normalised flux and error.
@@ -688,9 +787,9 @@ def lin_specpol(oray='ap2', hwrpafile = 'hwrpangles.txt', e_min_wl = 3775, bayes
 
 
         # Now calculating epsilon q and epsilon u and Delta epsilon.
-        eq = (0.5*F0 + 0.5*F2)*100
+        eq = (0.5*F0 + 0.5*F2)*100 # in percent
         eu = (0.5*F1 + 0.5*F3)*100
-        delta_e = eq-eu #in percent
+        delta_e = eq-eu
         stdv_dequ=[]
         try:
             for i in xrange(len(wl)):
@@ -715,6 +814,7 @@ def lin_specpol(oray='ap2', hwrpafile = 'hwrpangles.txt', e_min_wl = 3775, bayes
     # Now getting the data from the files in lists that will be used by the specpol() function.
     wl, ls_fo0, ls_fe0, ls_fo0_err, ls_fe0_err, ls_fo1, ls_fe1, ls_fo1_err, ls_fe1_err, ls_fo2, ls_fe2, ls_fo2_err, ls_fe2_err, ls_fo3, ls_fe3, ls_fo3_err, ls_fe3_err = get_data(ls_0, ls_1, ls_2, ls_3)
 
+
     qls=[]
     qrls=[]
     uls=[]
@@ -728,7 +828,141 @@ def lin_specpol(oray='ap2', hwrpafile = 'hwrpangles.txt', e_min_wl = 3775, bayes
     # which will be used as the error.
 
     for i in range(len(ls_fo0)):
-        p, pr, q, qr, u, ur, theta, thetar, delta_e, avg_e, stdv_e = specpol(wl, ls_fo0[i], ls_fe0[i], ls_fo0_err[i], ls_fe0_err[i], ls_fo1[i], ls_fe1[i], ls_fo1_err[i], ls_fe1_err[i], ls_fo2[i], ls_fe2[i], ls_fo2_err[i], ls_fe2_err[i], ls_fo3[i], ls_fe3[i], ls_fo3_err[i], ls_fe3_err[i])
+        print "Set ", i+1
+        snr_nb0 =  np.array((ls_fo0[i] + ls_fe0[i])/np.sqrt(ls_fo0_err[i]**2 + ls_fe0_err[i]**2)) # SNR not binned
+        snr_nb1 =  np.array((ls_fo1[i] + ls_fe1[i])/np.sqrt(ls_fo1_err[i]**2 + ls_fe1_err[i]**2))
+        snr_nb2 =  np.array((ls_fo2[i] + ls_fe2[i])/np.sqrt(ls_fo2_err[i]**2 + ls_fe2_err[i]**2))
+        snr_nb3 =  np.array((ls_fo3[i] + ls_fe3[i])/np.sqrt(ls_fo3_err[i]**2 + ls_fe3_err[i]**2))
+
+        #print (wl[1]-wl[0])
+        snr_exp0 = snr_nb0*np.sqrt(bin_size/(wl[1]-wl[0])) # expected snr
+        snr_exp1 = snr_nb1*np.sqrt(bin_size/(wl[1]-wl[0]))
+        snr_exp2 = snr_nb2*np.sqrt(bin_size/(wl[1]-wl[0]))
+        snr_exp3 = snr_nb3*np.sqrt(bin_size/(wl[1]-wl[0]))
+
+        ind_central_wl = int(np.argwhere(wl == min(wl, key=lambda x:abs(x-6204)))[0])
+        snr_nbc0 = snr_nb0[ind_central_wl]
+        snr_nbc1 = snr_nb1[ind_central_wl]
+        snr_nbc2 = snr_nb2[ind_central_wl]
+        snr_nbc3 = snr_nb3[ind_central_wl]
+
+        if bin_size is not None:
+            print "Rebinning to ",str(bin_size)," Angstrom"
+            bin_wl, bin_fo0, bin_fo0_err = rebin(wl, ls_fo0[i], ls_fo0_err[i])
+            bin_wl, bin_fe0, bin_fe0_err = rebin(wl, ls_fe0[i], ls_fe0_err[i])
+            bin_wl, bin_fo1, bin_fo1_err = rebin(wl, ls_fo1[i], ls_fo1_err[i])
+            bin_wl, bin_fe1, bin_fe1_err = rebin(wl, ls_fe1[i], ls_fe1_err[i])
+            bin_wl, bin_fo2, bin_fo2_err = rebin(wl, ls_fo2[i], ls_fo2_err[i])
+            bin_wl, bin_fe2, bin_fe2_err = rebin(wl, ls_fe2[i], ls_fe2_err[i])
+            bin_wl, bin_fo3, bin_fo3_err = rebin(wl, ls_fo3[i], ls_fo3_err[i])
+            bin_wl, bin_fe3, bin_fe3_err = rebin(wl, ls_fe3[i], ls_fe3_err[i])
+        elif bin_size is None:
+            print "Not Rebinning"
+            bin_wl, bin_fo0, bin_fo0_err = wl, ls_fo0[i], ls_fo0_err[i]
+            bin_wl, bin_fe0, bin_fe0_err = wl, ls_fe0[i], ls_fe0_err[i]
+            bin_wl, bin_fo1, bin_fo1_err = wl, ls_fo1[i], ls_fo1_err[i]
+            bin_wl, bin_fe1, bin_fe1_err = wl, ls_fe1[i], ls_fe1_err[i]
+            bin_wl, bin_fo2, bin_fo2_err = wl, ls_fo2[i], ls_fo2_err[i]
+            bin_wl, bin_fe2, bin_fe2_err = wl, ls_fe2[i], ls_fe2_err[i]
+            bin_wl, bin_fo3, bin_fo3_err = wl, ls_fo3[i], ls_fo3_err[i]
+            bin_wl, bin_fe3, bin_fe3_err = wl, ls_fe3[i], ls_fe3_err[i]
+
+        p, pr, q, qr, u, ur, theta, thetar, delta_e, avg_e, stdv_e = specpol(bin_wl, bin_fo0, bin_fe0, bin_fo0_err,
+                                                                             bin_fe0_err, bin_fo1, bin_fe1,
+                                                                             bin_fo1_err, bin_fe1_err, bin_fo2,
+                                                                             bin_fe2, bin_fo2_err, bin_fe2_err,
+                                                                             bin_fo3, bin_fe3, bin_fo3_err,
+                                                                             bin_fe3_err)
+
+
+        ind_central_wl = int(np.argwhere(bin_wl == min(bin_wl, key=lambda x:abs(x-6204)))[0])
+        snr_c0 = (bin_fo0[ind_central_wl] + bin_fe0[ind_central_wl])/np.sqrt(bin_fo0_err[ind_central_wl]**2 + bin_fe0_err[ind_central_wl]**2)
+        snr_c1 = (bin_fo1[ind_central_wl] + bin_fe1[ind_central_wl])/np.sqrt(bin_fo1_err[ind_central_wl]**2 + bin_fe1_err[ind_central_wl]**2)
+        snr_c2 = (bin_fo2[ind_central_wl] + bin_fe2[ind_central_wl])/np.sqrt(bin_fo2_err[ind_central_wl]**2 + bin_fe2_err[ind_central_wl]**2)
+        snr_c3 = (bin_fo3[ind_central_wl] + bin_fe3[ind_central_wl])/np.sqrt(bin_fo3_err[ind_central_wl]**2 + bin_fe3_err[ind_central_wl]**2)
+
+
+        #print "noise 0:", np.sqrt(bin_fo0_err[ind_central_wl]**2 + bin_fe0_err[ind_central_wl]**2), \
+        #      "noise 22.5:", np.sqrt(bin_fo1_err[ind_central_wl]**2 + bin_fe1_err[ind_central_wl]**2), \
+        #      "noise 45:", np.sqrt(bin_fo2_err[ind_central_wl]**2 + bin_fe2_err[ind_central_wl]**2), \
+        #      "noise 67.5:", np.sqrt(bin_fo3_err[ind_central_wl]**2 + bin_fe3_err[ind_central_wl]**2)
+        print "\n"
+
+        snr0 = (bin_fo0 + bin_fe0)/np.sqrt(bin_fo0_err**2 + bin_fe0_err**2)
+        snr1 = (bin_fo1 + bin_fe1)/np.sqrt(bin_fo1_err**2 + bin_fe1_err**2)
+        snr2 = (bin_fo2 + bin_fe2)/np.sqrt(bin_fo2_err**2 + bin_fe2_err**2)
+        snr3 = (bin_fo3 + bin_fe3)/np.sqrt(bin_fo3_err**2 + bin_fe3_err**2)
+
+        """ Median SNR not good comparison. Gotta do it with the central wavelength.
+        snr_exp_b0=[]
+        snr_exp_b1=[]
+        snr_exp_b2=[]
+        snr_exp_b3=[]
+
+        for i in range(len(bin_wl)):
+            index = int(np.argwhere(bin_wl == min(bin_wl, key=lambda x:abs(x-bin_wl[i])))[0])
+            snr_exp_b0.append(snr_exp0[index])
+            snr_exp_b1.append(snr_exp1[index])
+            snr_exp_b2.append(snr_exp2[index])
+            snr_exp_b3.append(snr_exp3[index])
+
+        med_res0 = np.median(snr_exp_b0 - snr0)  # median of residuals between expected and obtained SNR
+        med_res1 = np.median(snr_exp_b1 - snr1)
+        med_res2 = np.median(snr_exp_b2 - snr2)
+        med_res3 = np.median(snr_exp_b3 - snr3)
+
+        print "--------- 0 ------ 22.5 ----- 45 ----- 67.5 --------"
+        print "MEDIAN THEORETICAL: ",int(np.median(snr_exp_b0)), int(np.median(snr_exp_b1)), int(np.median(snr_exp_b2)), int(np.median(snr_exp_b3))
+        print "MEDIAN CALCULATED : ",int(np.median(snr0)), int(np.median(snr1)), int(np.median(snr2)), int(np.median(snr3))
+        print "MEDIAN OF RESIDUALS (EXPECTED SNR - OBTAINED) (not residual of median values)"
+        print med_res0, med_res1, med_res2, med_res3
+
+        avg_res0 = np.average(snr_exp_b0 - snr0) # median of residuals between expected and obtained SNR
+        avg_res1 = np.average(snr_exp_b1 - snr1)
+        avg_res2 = np.average(snr_exp_b2 - snr2)
+        avg_res3 = np.average(snr_exp_b3 - snr3)
+
+        print "AVERAGE OF RESIDUALS (EXPECTED SNR - OBTAINED)"
+        print avg_res0, avg_res1, avg_res2, avg_res3
+        print "\n"
+        """
+        snr_c_exp0 = snr_nbc0 * np.sqrt(bin_size/(wl[1]-wl[0]))
+        snr_c_exp1 = snr_nbc1 * np.sqrt(bin_size/(wl[1]-wl[0]))
+        snr_c_exp2 = snr_nbc2 * np.sqrt(bin_size/(wl[1]-wl[0]))
+        snr_c_exp3 = snr_nbc3 * np.sqrt(bin_size/(wl[1]-wl[0]))
+
+        print "--------- 0 ------ 22.5 ----- 45 ----- 67.5 -------- (CNTR WL ", int(bin_wl[ind_central_wl]),")"
+        print "CNTR WL THEORETICAL: ",int(snr_c_exp0), int(snr_c_exp1), int(snr_c_exp2), int(snr_c_exp3)
+        print "CNTR WL CALCULATED:  ",int(snr_c0), int(snr_c1), int(snr_c2), int(snr_c3)
+        print "CNTR WL RESIDUALS (EXPECTED SNR - OBTAINED)"
+        print snr_c_exp0 - snr_c0, snr_c_exp1 - snr_c1, snr_c_exp2 - snr_c2, snr_c_exp3 - snr_c3
+        print "\n"
+
+
+        plt.scatter(wl, snr_exp0, c='k', marker='.', label="expected SN 0 deg")
+        #plt.scatter(wl, snr_exp1, c='m', marker='.')
+        #plt.scatter(wl, snr_exp2, c='g', marker='.')
+        #plt.scatter(wl, snr_exp3, c='r', marker='.')
+        plt.plot(bin_wl, snr0, c='r', marker='+', ls='--', label="calculated", alpha=0.8)
+        plt.legend()
+        plt.show()
+
+        plt.plot(bin_wl, bin_fo0/bin_fo0_err, label="F/err 0 deg")
+        plt.show()
+
+        #snr0 = np.median((bin_fo0 + bin_fe0)/np.sqrt(bin_fo0_err**2 + bin_fe0_err**2))
+        #snr1 = np.median((bin_fo1 + bin_fe1)/np.sqrt(bin_fo1_err**2 + bin_fe1_err**2))
+        #snr2 = np.median((bin_fo2 + bin_fe2)/np.sqrt(bin_fo2_err**2 + bin_fe2_err**2))
+        #snr3 = np.median((bin_fo3 + bin_fe3)/np.sqrt(bin_fo3_err**2 + bin_fe3_err**2))
+
+        #print "Set ", i+1, " median SNR  ", bin_wl[0], bin_wl[1]
+        #print "SNR 0:", int(snr0), "SNR 22.5:", int(snr1), "SNR 45:", int(snr2), "SNR 67.5:", int(snr3)
+        #print "\n"
+        #print "noise 0:", np.median(np.sqrt(bin_fo0_err**2 + bin_fe0_err**2)), \
+        #      "noise 22.5:", np.median(np.sqrt(bin_fo1_err**2 + bin_fe1_err**2)), \
+        #      "noise 45:", np.median(np.sqrt(bin_fo2_err**2 + bin_fe2_err**2)), \
+        #      "noise 67.5:", np.median(np.sqrt(bin_fo3_err**2 + bin_fe3_err**2))
+
         qls.append(q)
         qrls.append(qr)
         uls.append(u)
@@ -816,8 +1050,16 @@ def lin_specpol(oray='ap2', hwrpafile = 'hwrpangles.txt', e_min_wl = 3775, bayes
             for i in range(len(p0)):
                 tau = (sigma[j]**2)*2*p0[i]
                 pp0 = pbar[j]*p0[i]
-                RiceDistribution = pbar[j]*np.exp(-((pbar[j]**2 + p0[i]**2)/2)) * special.iv(0, pp0)
-                rhoi = RiceDistribution * tau
+
+                #print pbar[j]**2, (p0[i]**2)/2, special.iv(0, pp0)
+                rice_distribution = pbar[j]*np.exp(-((pbar[j]**2 + p0[i]**2)/2)) * special.iv(0, pp0)
+                if m.isnan(rice_distribution) is True or m.isinf(rice_distribution) is True:
+                    #print pf[j], sigma[j], pbar[j], p0[i-1], pbar[j]*p0[i-1]
+                    #print pf[j], sigma[j], pbar[j], p0[i], pp0
+                    print "Infinite values encountered. Resulting polarisation may be invalid. Use the Step function method"
+
+                    #return
+                rhoi = rice_distribution * tau
                 rho = np.append(rho, rhoi)
 
             p0mean = np.average(p0, weights=rho)
@@ -826,15 +1068,14 @@ def lin_specpol(oray='ap2', hwrpafile = 'hwrpangles.txt', e_min_wl = 3775, bayes
     # ###### CREATING THE TEXT FILE ###### #
     pol_file = raw_input('What do you want to name the polarisation file? ')
     try:
-        os.remove(pol_file)
+        os.remove(pol_file+".pol")
     except:
          print 'kittens'
 
-    print len(wl), len(pfinal), len(prf), len(qf), len(qrf), len(uf), len(urf), len(thetaf)
-    
-    for l in xrange(len(wl)):
-        with open(pol_file, 'a') as pol_f:
-            pol_f.write(str(wl[l])+'    '+str(pfinal[l])+'    '+str(prf[l])+'    '+str(qf[l])+'    '+str(qrf[l])+'    '+str(uf[l])+'    '+str(urf[l])+'    '+str(thetaf[l])+'    '+str(thetarf[l])+'\n')
+    for l in xrange(len(bin_wl)):
+        with open(pol_file+".pol", 'a') as pol_f:
+            pol_f.write(str(bin_wl[l])+'    '+str(pfinal[l])+'    '+str(prf[l])+'    '+str(qf[l])+'    '+str(qrf[l])+
+                        '    '+str(uf[l])+'    '+str(urf[l])+'    '+str(thetaf[l])+'    '+str(thetarf[l])+'\n')
 
     # ###### MAKING PLOTS ########
     # Just to check that everything looks right.
@@ -843,55 +1084,63 @@ def lin_specpol(oray='ap2', hwrpafile = 'hwrpangles.txt', e_min_wl = 3775, bayes
     plt.subplots_adjust(hspace=0)
 
     # First axis is p
-    axarr[0].errorbar(wl, pf, yerr=prf, c='#D92F2F')
+    axarr[0].errorbar(bin_wl, pf, yerr=prf, c='#D92F2F')
     axarr[0].axhline(0,0, ls='--', c='k')
     pmax=-1000
-    for i in range(len(wl)):
-        if wl[i]>4500 and pf[i]>pmax:
-            pmax=pf[i]
+    for i in range(len(bin_wl)):
+        if bin_wl[i]>4500 and pf[i]>pmax:
+            pmax=pfinal[i]
+
     axarr[0].set_ylim([-0.1,pmax+0.4])
     axarr[0].set_ylabel('p(%)', fontsize=14)
 
     # Then q
-    axarr[1].errorbar(wl, qf, yerr=qrf, c='#D92F2F')
+    axarr[1].errorbar(bin_wl, qf, yerr=qrf, c='#D92F2F')
     axarr[1].axhline(0,0, ls='--', c='k')
     qmax=-1000
     qmin=1000
-    for i in range(len(wl)):
-        if wl[i]>4500 and qf[i]>qmax:
+    for i in range(len(bin_wl)):
+        if bin_wl[i]>4500 and qf[i]>qmax:
             qmax=qf[i]
-        if wl[i]>4500 and qf[i]<qmin:
+        if bin_wl[i]>4500 and qf[i]<qmin:
             qmin=qf[i]
     axarr[1].set_ylim([qmin-0.3,qmax+0.3])
     axarr[1].set_ylabel('q(%)', fontsize=14)
 
     # And u
-    axarr[2].errorbar(wl, uf, yerr=urf, c='#D92F2F')
+    axarr[2].errorbar(bin_wl, uf, yerr=urf, c='#D92F2F')
     axarr[2].axhline(0,0, ls='--', c='k')
     umax=-1000
     umin=1000
-    for i in range(len(wl)):
-        if wl[i]>4500 and uf[i]>umax:
+    for i in range(len(bin_wl)):
+        if bin_wl[i]>4500 and uf[i]>umax:
             umax=uf[i]
-        if wl[i]>4500 and uf[i]<umin:
+        if bin_wl[i]>4500 and uf[i]<umin:
             umin=uf[i]
     axarr[2].set_ylim([umin-0.3,umax+0.3])
     axarr[2].set_ylabel('u(%)', fontsize=14)
 
     # P.A
-    axarr[3].errorbar(wl, thetaf, yerr=thetarf, c='#D92F2F')
+    axarr[3].errorbar(bin_wl, thetaf, yerr=thetarf, c='#D92F2F')
     axarr[3].axhline(0,0, ls='--', c='k')
     axarr[3].set_ylim([-0,180])
     axarr[3].set_ylabel('theta', fontsize=14)
 
     # And finally the Delta epsilons of each data set.
     for i in range(len(delta_es)):
-        axarr[4].plot(wl, delta_es[i], alpha= 0.8)
+        axarr[4].plot(bin_wl, delta_es[i], alpha= 0.8)
         print "Average Delta epsilon =",avg_es[i],"STDV =",stdv_es[i]
 
     axarr[4].set_ylabel(r"$\Delta \epsilon", fontsize = 16)
     axarr[4].set_ylim([-4.0,4.0])
     plt.xlim([3500,10000])
+
+    save_cond = raw_input("do you want to save the plot?(Y/n): ")
+    if save_cond =="y" or save_cond=="Y" or save_cond=="":
+        plt.savefig(pol_file+".png")
+        print "Plot saved"
+    else:
+        print "Plot not saved"
 
     plt.show()
 
@@ -901,7 +1150,7 @@ def lin_specpol(oray='ap2', hwrpafile = 'hwrpangles.txt', e_min_wl = 3775, bayes
 # #####################~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~########################### #
 
 
-def circ_specpol(oray='ap2', hwrpafile = 'hwrpangles_v.txt', e_min_wl = 3775):
+def circ_specpol(oray='ap2', hwrpafile = 'hwrpangles_v.txt', bin_size=None, e_min_wl = 3775):
     """
     Calculates the circular polarisation v and epsilon_v for all data sets. The plot is not automatically saved.
 
@@ -1011,6 +1260,124 @@ def circ_specpol(oray='ap2', hwrpafile = 'hwrpangles_v.txt', e_min_wl = 3775):
 
         return wl, ls_fo0, ls_fe0, ls_fo0_err, ls_fe0_err, ls_fo1, ls_fe1, ls_fo1_err, ls_fe1_err
 
+    def rebin(wl, f, r, bin_siz=bin_size):
+        """
+        To rebin my flux spectra
+
+        Parameters
+        ----------
+        wl : array
+            1D array containing the wavelengths to be rebinned
+        f : array
+            1D array containing the fluxes to be rebinned
+        r : array
+            1D array containing the errors on the fluxes to be rebinned
+        bin_siz : int
+            Size of the new bins in Angstrom.
+
+        Returns
+        -------
+            tuple of 1D arrays: wl, f, err all rebinned to the new bin size
+        if bin_siz is None:
+            print "No binning"
+            return wl, f, r
+        """
+
+        wl = np.array(wl)
+        f = np.array(f)
+        r = np.array(r)
+        small_bin_sizes = []
+
+        bins_f = np.zeros(int((max(wl)-min(wl))/bin_siz)+1) # new flux bins, empty for now
+        bins_w = np.zeros(int((max(wl)-min(wl))/bin_siz)+1) # new error bins, empty for now
+
+        weights = 1/(r**2)
+
+        for i in range(len(wl)-1):
+            n = int((wl[i]-min(wl))/bin_siz) # n is the number of the new bin
+            small_bin_sizes.append((wl[i+1]-wl[i])) # filling list of small bin sizes
+
+        bin_centers = [(min(wl))+bin_siz*n for n in range(len(bins_f))] # finding the new bin centers
+
+        bin_edges = [bin_centers[0]]+[bin1 + bin_siz for bin1 in bin_centers] # finding the new bin edges
+
+        ind_edge = [] # in this list I'll put the index of the array wl corresponding to the wavelength values
+                      # that are close to the bin edges.
+
+        for edge in bin_edges:
+            i_wl_at_edge = min(range(len(wl[:-1])), key=lambda i: abs(edge-wl[i]))
+            #this is to find the small bin that is closest to the edge of the new bin
+            #print wl[i_wl_at_edge], small_bin_sizes[i_wl_at_edge]
+            #n = int((wl[i_wl_at_edge]-min(wl))/bin_siz) # number of the new bin
+            #print n
+            ind_edge.append(i_wl_at_edge)
+        #print len(bin_edges), len(ind_edge)
+
+        for i in range(len(wl)):
+            n = int((wl[i]-min(wl))/bin_siz)
+            if i in ind_edge:
+                j = ind_edge.index(i) # finding index j of the wavelength index i I am interested in
+                edge = bin_edges[j] # the edge to compare to wl[i] will then be at bin_edges[j]
+
+                if wl[i] < edge:
+                    #print wl[i_wl_at_edge]+wlerr[i_wl_at_edge]-edge, wlerr[i_wl_at_edge]*2
+                    frac_overlap = (wl[i]+small_bin_sizes[i]/2-edge)/(small_bin_sizes[i])
+                    #print frac_overlap
+                    #print '\n'
+                    try:
+                        bins_f[n] += f[i]*weights[i]*frac_overlap
+                        bins_w[n] += weights[i]*frac_overlap
+                        bins_f[n+1] += f[i]*weights[i]*(1-frac_overlap)
+                        bins_w[n+1] += weights[i]*(1-frac_overlap)
+
+                        #bins_f[n] += f[i]*frac_overlap # trying just a sum instead of weighted average
+                        #bins_f[n+1] += f[i]*(1-frac_overlap)
+                    except IndexError:
+                        pass
+
+                elif wl[i] > edge:
+                    #print edge - (wl[i_wl_at_edge]-wlerr[i_wl_at_edge]), wlerr[i_wl_at_edge]*2
+                    frac_overlap = (wl[i]+small_bin_sizes[i]/2-edge)/(small_bin_sizes[i])
+                    #print frac_overlap
+                    #print '\n'
+                    try:
+                        bins_f[n] += f[i]*weights[i]*(1-frac_overlap)
+                        bins_w[n] += weights[i]*(1-frac_overlap)
+                        bins_f[n+1] += f[i]*weights[i]*frac_overlap
+                        bins_w[n+1] += weights[i]*frac_overlap
+
+                        #bins_f[n] += f[i]*(1-frac_overlap) # trying just a sum instead of weighted average
+                        #bins_f[n+1] += f[i]*frac_overlap
+                    except IndexError:
+                        pass
+
+            else:
+                try:
+                    bins_f[n] += f[i]*weights[i]
+                    bins_w[n] += weights[i]
+                    # bins_f[n] += f[i] # for sum instead of average
+                except IndexError:
+                    pass
+
+        for i in range(len(bin_centers)):
+            if bins_w[i] == 0.0:
+                print bin_centers[i], bins_w[i]
+
+        bins_f[:-1] /= bins_w[:-1]  # normalise weighted values by sum of weights to get weighted average
+        bins_err = np.sqrt(1/bins_w[:-1])
+
+        #bins_err =np.array([]) # for sum instead of average
+        #for bin_f in bins_f:
+        #    if bin_f >0:
+        #        bins_err = np.append(bins_err, np.sqrt(bin_f))
+        #    else:
+        #        bins_err = np.append(bins_err, 0)
+        #for wln, fn, errn in zip(bin_centers, bins_f, bins_err):
+        #    print wln, fn, errn
+
+        return bin_centers[:-1], bins_f[:-1], bins_err
+        # return bin_centers, bins_f, bins_err # for sum instead of average
+
     def normalized_V(wl, fo, fo_err, fe, fe_err):
         """
         Finds the normalized v
@@ -1084,8 +1451,8 @@ def circ_specpol(oray='ap2', hwrpafile = 'hwrpangles_v.txt', e_min_wl = 3775):
             v_err.append(v_i_err)
             #eps= eps*10
             
-        cond = (wl>e_min_wl)
-        eps_crop = eps[cond]
+        #cond = (wl>e_min_wl)
+        eps_crop = eps[int(np.argwhere(wl>e_min_wl)[0]):]
         eps_avg = np.average(eps_crop)
         eps_std = np.std(eps_crop)
 
@@ -1134,9 +1501,16 @@ def circ_specpol(oray='ap2', hwrpafile = 'hwrpangles_v.txt', e_min_wl = 3775):
     ls_eps = []
     avg_eps = []
     stdv_eps = []
-    
+
     for i in range(len(ls_fo0)):
-        v, verr, eps, eps_avg, eps_std = v_1set(wl, ls_fo0[i], ls_fe0[i], ls_fo0_err[i], ls_fe0_err[i], ls_fo1[i], ls_fe1[i], ls_fo1_err[i], ls_fe1_err[i])
+        print "Rebinning to ",str(bin_size)," Angstrom"
+        bin_wl, bin_fo0, bin_fo0_err = rebin(wl, ls_fo0[i], ls_fo0_err[i])
+        bin_wl, bin_fe0, bin_fe0_err = rebin(wl, ls_fe0[i], ls_fe0_err[i])
+        bin_wl, bin_fo1, bin_fo1_err = rebin(wl, ls_fo1[i], ls_fo1_err[i])
+        bin_wl, bin_fe1, bin_fe1_err = rebin(wl, ls_fe1[i], ls_fe1_err[i])
+
+    #for i in range(len(ls_fo0)):
+        v, verr, eps, eps_avg, eps_std = v_1set(bin_wl, bin_fo0, bin_fe0, bin_fo0_err, bin_fe0_err, bin_fo1, bin_fe1, bin_fo1_err, bin_fe1_err)
         v_ls.append(v)
         verr_ls.append(verr)
         ls_eps.append(eps)
@@ -1168,9 +1542,9 @@ def circ_specpol(oray='ap2', hwrpafile = 'hwrpangles_v.txt', e_min_wl = 3775):
         os.remove(pol_file)
     except:
          print 'kittens'
-    for l in xrange(len(wl)):
+    for l in xrange(len(bin_wl)):
         with open(pol_file, 'a') as pol_f:
-            pol_f.write(str(wl[l])+'    '+str(vf[l])+'    '+str(vf_err[l])+'\n')
+            pol_f.write(str(bin_wl[l])+'    '+str(vf[l])+'    '+str(vf_err[l])+'\n')
 
     # ###### MAKING PLOT ########
     # Just to check that everything looks right.
@@ -1179,14 +1553,14 @@ def circ_specpol(oray='ap2', hwrpafile = 'hwrpangles_v.txt', e_min_wl = 3775):
     plt.subplots_adjust(hspace=0)
 
     # First axis is v
-    axarr[0].errorbar(wl, vf, yerr=vf_err, c='#D92F2F')
+    axarr[0].errorbar(bin_wl, vf, yerr=vf_err, c='#D92F2F')
     axarr[0].axhline(0,0, ls='--', c='k')
     vmax=-1000
     vmin=10000
-    for i in range(len(wl)):
-        if wl[i]>4500 and vf[i]>vmax:
+    for i in range(len(bin_wl)):
+        if bin_wl[i]>4500 and vf[i]>vmax:
             vmax=vf[i]
-        if wl[i]>4500 and vf[i]<vmin:
+        if bin_wl[i]>4500 and vf[i]<vmin:
             vmin=vf[i]
 
     axarr[0].set_ylim([vmin-0.4,vmax+0.4])
@@ -1194,7 +1568,7 @@ def circ_specpol(oray='ap2', hwrpafile = 'hwrpangles_v.txt', e_min_wl = 3775):
     
     # And then the Delta epsilons of each data set.
     for i in range(len(ls_eps)):
-        axarr[1].plot(wl, ls_eps[i], alpha= 0.8)
+        axarr[1].plot(bin_wl, ls_eps[i], alpha= 0.8)
         print "Average Delta epsilon =",avg_eps[i],"STDV =",stdv_eps[i]
 
     axarr[1].set_ylabel(r"$\Delta \epsilon", fontsize = 16)
@@ -1203,7 +1577,7 @@ def circ_specpol(oray='ap2', hwrpafile = 'hwrpangles_v.txt', e_min_wl = 3775):
 
     plt.show()
 
-    return wl, vf, vf_err, ls_eps
+    return bin_wl, vf, vf_err, ls_eps
 
 # ########################## V BAND POL ###############################
 
