@@ -605,12 +605,12 @@ def lin_specpol(oray='ap2', hwrpafile = 'hwrpangles.txt', bin_size = None, e_min
         weights = 1/(r**2)
 
         for i in range(len(wl)-1):
-            n = int((wl[i]-min(wl))/bin_siz) # n is the number of the new bin
+            #n = int((wl[i]-min(wl))/bin_siz) # n is the number of the new bin
             small_bin_sizes.append((wl[i+1]-wl[i])) # filling list of small bin sizes
 
-        bin_centers = [(min(wl))+bin_siz*n for n in range(len(bins_f))] # finding the new bin centers
+        bin_centers = [(min(wl)+bin_siz/2)+bin_siz*n for n in range(len(bins_f))] # finding the new bin centers
 
-        bin_edges = [bin_centers[0]]+[bin1 + bin_siz for bin1 in bin_centers] # finding the new bin edges
+        bin_edges = [bin_centers[0]-bin_siz/2]+[bin1 + bin_siz/2 for bin1 in bin_centers] # finding the new bin edges
 
         ind_edge = [] # in this list I'll put the index of the array wl corresponding to the wavelength values
                       # that are close to the bin edges.
@@ -829,24 +829,30 @@ def lin_specpol(oray='ap2', hwrpafile = 'hwrpangles.txt', bin_size = None, e_min
 
     for i in range(len(ls_fo0)):
         print "Set ", i+1
-        snr_nb0 =  np.array((ls_fo0[i] + ls_fe0[i])/np.sqrt(ls_fo0_err[i]**2 + ls_fe0_err[i]**2)) # SNR not binned
-        snr_nb1 =  np.array((ls_fo1[i] + ls_fe1[i])/np.sqrt(ls_fo1_err[i]**2 + ls_fe1_err[i]**2))
-        snr_nb2 =  np.array((ls_fo2[i] + ls_fe2[i])/np.sqrt(ls_fo2_err[i]**2 + ls_fe2_err[i]**2))
-        snr_nb3 =  np.array((ls_fo3[i] + ls_fe3[i])/np.sqrt(ls_fo3_err[i]**2 + ls_fe3_err[i]**2))
-
-        #print (wl[1]-wl[0])
-        snr_exp0 = snr_nb0*np.sqrt(bin_size/(wl[1]-wl[0])) # expected snr
-        snr_exp1 = snr_nb1*np.sqrt(bin_size/(wl[1]-wl[0]))
-        snr_exp2 = snr_nb2*np.sqrt(bin_size/(wl[1]-wl[0]))
-        snr_exp3 = snr_nb3*np.sqrt(bin_size/(wl[1]-wl[0]))
-
-        ind_central_wl = int(np.argwhere(wl == min(wl, key=lambda x:abs(x-6204)))[0])
-        snr_nbc0 = snr_nb0[ind_central_wl]
-        snr_nbc1 = snr_nb1[ind_central_wl]
-        snr_nbc2 = snr_nb2[ind_central_wl]
-        snr_nbc3 = snr_nb3[ind_central_wl]
 
         if bin_size is not None:
+            snr_nb0 =  np.array((ls_fo0[i] + ls_fe0[i])/np.sqrt(ls_fo0_err[i]**2 + ls_fe0_err[i]**2)) # SNR not binned
+            snr_nb1 =  np.array((ls_fo1[i] + ls_fe1[i])/np.sqrt(ls_fo1_err[i]**2 + ls_fe1_err[i]**2))
+            snr_nb2 =  np.array((ls_fo2[i] + ls_fe2[i])/np.sqrt(ls_fo2_err[i]**2 + ls_fe2_err[i]**2))
+            snr_nb3 =  np.array((ls_fo3[i] + ls_fe3[i])/np.sqrt(ls_fo3_err[i]**2 + ls_fe3_err[i]**2))
+            
+            print "MEDIAN SNR before binning: "
+            print np.median(snr_nb0), np.median(snr_nb1), np.median(snr_nb2), np.median(snr_nb3)
+
+            #print (wl[1]-wl[0])
+            snr_exp0 = snr_nb0*np.sqrt(bin_size/(wl[1]-wl[0])) # expected snr
+            snr_exp1 = snr_nb1*np.sqrt(bin_size/(wl[1]-wl[0]))
+            snr_exp2 = snr_nb2*np.sqrt(bin_size/(wl[1]-wl[0]))
+            snr_exp3 = snr_nb3*np.sqrt(bin_size/(wl[1]-wl[0]))
+
+            ind_central_wl = int(np.argwhere(wl == min(wl, key=lambda x:abs(x-6204)))[0])
+            snr_nbc0 = snr_nb0[ind_central_wl]
+            snr_nbc1 = snr_nb1[ind_central_wl]
+            snr_nbc2 = snr_nb2[ind_central_wl]
+            snr_nbc3 = snr_nb3[ind_central_wl]
+            print "SNR before binning at ", wl[ind_central_wl]
+            print snr_nbc0 , snr_nbc1, snr_nbc2, snr_nbc3
+            
             print "Rebinning to ",str(bin_size)," Angstrom"
             bin_wl, bin_fo0, bin_fo0_err = rebin(wl, ls_fo0[i], ls_fo0_err[i])
             bin_wl, bin_fe0, bin_fe0_err = rebin(wl, ls_fe0[i], ls_fe0_err[i])
@@ -856,6 +862,98 @@ def lin_specpol(oray='ap2', hwrpafile = 'hwrpangles.txt', bin_size = None, e_min
             bin_wl, bin_fe2, bin_fe2_err = rebin(wl, ls_fe2[i], ls_fe2_err[i])
             bin_wl, bin_fo3, bin_fo3_err = rebin(wl, ls_fo3[i], ls_fo3_err[i])
             bin_wl, bin_fe3, bin_fe3_err = rebin(wl, ls_fe3[i], ls_fe3_err[i])
+            
+            ind_central_wl = int(np.argwhere(bin_wl == min(bin_wl, key=lambda x:abs(x-6204)))[0])
+            snr_c0 = (bin_fo0[ind_central_wl] + bin_fe0[ind_central_wl])/np.sqrt(bin_fo0_err[ind_central_wl]**2 + bin_fe0_err[ind_central_wl]**2)
+            snr_c1 = (bin_fo1[ind_central_wl] + bin_fe1[ind_central_wl])/np.sqrt(bin_fo1_err[ind_central_wl]**2 + bin_fe1_err[ind_central_wl]**2)
+            snr_c2 = (bin_fo2[ind_central_wl] + bin_fe2[ind_central_wl])/np.sqrt(bin_fo2_err[ind_central_wl]**2 + bin_fe2_err[ind_central_wl]**2)
+            snr_c3 = (bin_fo3[ind_central_wl] + bin_fe3[ind_central_wl])/np.sqrt(bin_fo3_err[ind_central_wl]**2 + bin_fe3_err[ind_central_wl]**2)
+
+
+            #print "noise 0:", np.sqrt(bin_fo0_err[ind_central_wl]**2 + bin_fe0_err[ind_central_wl]**2), \
+            #      "noise 22.5:", np.sqrt(bin_fo1_err[ind_central_wl]**2 + bin_fe1_err[ind_central_wl]**2), \
+            #      "noise 45:", np.sqrt(bin_fo2_err[ind_central_wl]**2 + bin_fe2_err[ind_central_wl]**2), \
+            #      "noise 67.5:", np.sqrt(bin_fo3_err[ind_central_wl]**2 + bin_fe3_err[ind_central_wl]**2)
+            print "\n"
+
+            snr0 = (bin_fo0 + bin_fe0)/np.sqrt(bin_fo0_err**2 + bin_fe0_err**2)
+            snr1 = (bin_fo1 + bin_fe1)/np.sqrt(bin_fo1_err**2 + bin_fe1_err**2)
+            snr2 = (bin_fo2 + bin_fe2)/np.sqrt(bin_fo2_err**2 + bin_fe2_err**2)
+            snr3 = (bin_fo3 + bin_fe3)/np.sqrt(bin_fo3_err**2 + bin_fe3_err**2)
+
+            """ Median SNR not good comparison. Gotta do it with the central wavelength.
+            snr_exp_b0=[]
+            snr_exp_b1=[]
+            snr_exp_b2=[]
+            snr_exp_b3=[]
+
+            for i in range(len(bin_wl)):
+                index = int(np.argwhere(bin_wl == min(bin_wl, key=lambda x:abs(x-bin_wl[i])))[0])
+                snr_exp_b0.append(snr_exp0[index])
+                snr_exp_b1.append(snr_exp1[index])
+                snr_exp_b2.append(snr_exp2[index])
+                snr_exp_b3.append(snr_exp3[index])
+
+            med_res0 = np.median(snr_exp_b0 - snr0)  # median of residuals between expected and obtained SNR
+            med_res1 = np.median(snr_exp_b1 - snr1)
+            med_res2 = np.median(snr_exp_b2 - snr2)
+            med_res3 = np.median(snr_exp_b3 - snr3)
+
+            print "--------- 0 ------ 22.5 ----- 45 ----- 67.5 --------"
+            print "MEDIAN THEORETICAL: ",int(np.median(snr_exp_b0)), int(np.median(snr_exp_b1)), int(np.median(snr_exp_b2)), int(np.median(snr_exp_b3))
+            print "MEDIAN CALCULATED : ",int(np.median(snr0)), int(np.median(snr1)), int(np.median(snr2)), int(np.median(snr3))
+            print "MEDIAN OF RESIDUALS (EXPECTED SNR - OBTAINED) (not residual of median values)"
+            print med_res0, med_res1, med_res2, med_res3
+
+            avg_res0 = np.average(snr_exp_b0 - snr0) # median of residuals between expected and obtained SNR
+            avg_res1 = np.average(snr_exp_b1 - snr1)
+            avg_res2 = np.average(snr_exp_b2 - snr2)
+            avg_res3 = np.average(snr_exp_b3 - snr3)
+
+            print "AVERAGE OF RESIDUALS (EXPECTED SNR - OBTAINED)"
+            print avg_res0, avg_res1, avg_res2, avg_res3
+            print "\n"
+            """
+            snr_c_exp0 = snr_nbc0 * np.sqrt(bin_size/(wl[1]-wl[0]))
+            snr_c_exp1 = snr_nbc1 * np.sqrt(bin_size/(wl[1]-wl[0]))
+            snr_c_exp2 = snr_nbc2 * np.sqrt(bin_size/(wl[1]-wl[0]))
+            snr_c_exp3 = snr_nbc3 * np.sqrt(bin_size/(wl[1]-wl[0]))
+
+            print "--------- 0 ------ 22.5 ----- 45 ----- 67.5 -------- (CNTR WL ", int(bin_wl[ind_central_wl]),")"
+            print "CNTR WL THEORETICAL: ",int(snr_c_exp0), int(snr_c_exp1), int(snr_c_exp2), int(snr_c_exp3)
+            print "CNTR WL CALCULATED:  ",int(snr_c0), int(snr_c1), int(snr_c2), int(snr_c3)
+            print "CNTR WL RESIDUALS (EXPECTED SNR - OBTAINED)"
+            print snr_c_exp0 - snr_c0, snr_c_exp1 - snr_c1, snr_c_exp2 - snr_c2, snr_c_exp3 - snr_c3
+            print "\n"
+
+
+            plt.scatter(wl, snr_exp0, c='k', marker='.', label="expected SN 0 deg")
+            #plt.scatter(wl, snr_exp1, c='m', marker='.')
+            #plt.scatter(wl, snr_exp2, c='g', marker='.')
+            #plt.scatter(wl, snr_exp3, c='r', marker='.')
+            plt.plot(bin_wl, snr0, c='r', marker='+', ls='--', label="calculated", alpha=0.8)
+            plt.legend()
+            plt.show()
+
+            plt.scatter(wl, ls_fo0[i], alpha=1, marker='.')
+            plt.scatter(bin_wl, bin_fo0, label="F/err 0 deg", marker='.', alpha=0.5)
+            plt.show()
+
+            #snr0 = np.median((bin_fo0 + bin_fe0)/np.sqrt(bin_fo0_err**2 + bin_fe0_err**2))
+            #snr1 = np.median((bin_fo1 + bin_fe1)/np.sqrt(bin_fo1_err**2 + bin_fe1_err**2))
+            #snr2 = np.median((bin_fo2 + bin_fe2)/np.sqrt(bin_fo2_err**2 + bin_fe2_err**2))
+            #snr3 = np.median((bin_fo3 + bin_fe3)/np.sqrt(bin_fo3_err**2 + bin_fe3_err**2))
+
+            #print "Set ", i+1, " median SNR  ", bin_wl[0], bin_wl[1]
+            #print "SNR 0:", int(snr0), "SNR 22.5:", int(snr1), "SNR 45:", int(snr2), "SNR 67.5:", int(snr3)
+            #print "\n"
+            #print "noise 0:", np.median(np.sqrt(bin_fo0_err**2 + bin_fe0_err**2)), \
+            #      "noise 22.5:", np.median(np.sqrt(bin_fo1_err**2 + bin_fe1_err**2)), \
+            #      "noise 45:", np.median(np.sqrt(bin_fo2_err**2 + bin_fe2_err**2)), \
+            #      "noise 67.5:", np.median(np.sqrt(bin_fo3_err**2 + bin_fe3_err**2))
+
+            
+            
         elif bin_size is None:
             print "Not Rebinning"
             bin_wl, bin_fo0, bin_fo0_err = wl, ls_fo0[i], ls_fo0_err[i]
@@ -875,94 +973,7 @@ def lin_specpol(oray='ap2', hwrpafile = 'hwrpangles.txt', bin_size = None, e_min
                                                                              bin_fe3_err)
 
 
-        ind_central_wl = int(np.argwhere(bin_wl == min(bin_wl, key=lambda x:abs(x-6204)))[0])
-        snr_c0 = (bin_fo0[ind_central_wl] + bin_fe0[ind_central_wl])/np.sqrt(bin_fo0_err[ind_central_wl]**2 + bin_fe0_err[ind_central_wl]**2)
-        snr_c1 = (bin_fo1[ind_central_wl] + bin_fe1[ind_central_wl])/np.sqrt(bin_fo1_err[ind_central_wl]**2 + bin_fe1_err[ind_central_wl]**2)
-        snr_c2 = (bin_fo2[ind_central_wl] + bin_fe2[ind_central_wl])/np.sqrt(bin_fo2_err[ind_central_wl]**2 + bin_fe2_err[ind_central_wl]**2)
-        snr_c3 = (bin_fo3[ind_central_wl] + bin_fe3[ind_central_wl])/np.sqrt(bin_fo3_err[ind_central_wl]**2 + bin_fe3_err[ind_central_wl]**2)
-
-
-        #print "noise 0:", np.sqrt(bin_fo0_err[ind_central_wl]**2 + bin_fe0_err[ind_central_wl]**2), \
-        #      "noise 22.5:", np.sqrt(bin_fo1_err[ind_central_wl]**2 + bin_fe1_err[ind_central_wl]**2), \
-        #      "noise 45:", np.sqrt(bin_fo2_err[ind_central_wl]**2 + bin_fe2_err[ind_central_wl]**2), \
-        #      "noise 67.5:", np.sqrt(bin_fo3_err[ind_central_wl]**2 + bin_fe3_err[ind_central_wl]**2)
-        print "\n"
-
-        snr0 = (bin_fo0 + bin_fe0)/np.sqrt(bin_fo0_err**2 + bin_fe0_err**2)
-        snr1 = (bin_fo1 + bin_fe1)/np.sqrt(bin_fo1_err**2 + bin_fe1_err**2)
-        snr2 = (bin_fo2 + bin_fe2)/np.sqrt(bin_fo2_err**2 + bin_fe2_err**2)
-        snr3 = (bin_fo3 + bin_fe3)/np.sqrt(bin_fo3_err**2 + bin_fe3_err**2)
-
-        """ Median SNR not good comparison. Gotta do it with the central wavelength.
-        snr_exp_b0=[]
-        snr_exp_b1=[]
-        snr_exp_b2=[]
-        snr_exp_b3=[]
-
-        for i in range(len(bin_wl)):
-            index = int(np.argwhere(bin_wl == min(bin_wl, key=lambda x:abs(x-bin_wl[i])))[0])
-            snr_exp_b0.append(snr_exp0[index])
-            snr_exp_b1.append(snr_exp1[index])
-            snr_exp_b2.append(snr_exp2[index])
-            snr_exp_b3.append(snr_exp3[index])
-
-        med_res0 = np.median(snr_exp_b0 - snr0)  # median of residuals between expected and obtained SNR
-        med_res1 = np.median(snr_exp_b1 - snr1)
-        med_res2 = np.median(snr_exp_b2 - snr2)
-        med_res3 = np.median(snr_exp_b3 - snr3)
-
-        print "--------- 0 ------ 22.5 ----- 45 ----- 67.5 --------"
-        print "MEDIAN THEORETICAL: ",int(np.median(snr_exp_b0)), int(np.median(snr_exp_b1)), int(np.median(snr_exp_b2)), int(np.median(snr_exp_b3))
-        print "MEDIAN CALCULATED : ",int(np.median(snr0)), int(np.median(snr1)), int(np.median(snr2)), int(np.median(snr3))
-        print "MEDIAN OF RESIDUALS (EXPECTED SNR - OBTAINED) (not residual of median values)"
-        print med_res0, med_res1, med_res2, med_res3
-
-        avg_res0 = np.average(snr_exp_b0 - snr0) # median of residuals between expected and obtained SNR
-        avg_res1 = np.average(snr_exp_b1 - snr1)
-        avg_res2 = np.average(snr_exp_b2 - snr2)
-        avg_res3 = np.average(snr_exp_b3 - snr3)
-
-        print "AVERAGE OF RESIDUALS (EXPECTED SNR - OBTAINED)"
-        print avg_res0, avg_res1, avg_res2, avg_res3
-        print "\n"
-        """
-        snr_c_exp0 = snr_nbc0 * np.sqrt(bin_size/(wl[1]-wl[0]))
-        snr_c_exp1 = snr_nbc1 * np.sqrt(bin_size/(wl[1]-wl[0]))
-        snr_c_exp2 = snr_nbc2 * np.sqrt(bin_size/(wl[1]-wl[0]))
-        snr_c_exp3 = snr_nbc3 * np.sqrt(bin_size/(wl[1]-wl[0]))
-
-        print "--------- 0 ------ 22.5 ----- 45 ----- 67.5 -------- (CNTR WL ", int(bin_wl[ind_central_wl]),")"
-        print "CNTR WL THEORETICAL: ",int(snr_c_exp0), int(snr_c_exp1), int(snr_c_exp2), int(snr_c_exp3)
-        print "CNTR WL CALCULATED:  ",int(snr_c0), int(snr_c1), int(snr_c2), int(snr_c3)
-        print "CNTR WL RESIDUALS (EXPECTED SNR - OBTAINED)"
-        print snr_c_exp0 - snr_c0, snr_c_exp1 - snr_c1, snr_c_exp2 - snr_c2, snr_c_exp3 - snr_c3
-        print "\n"
-
-
-        plt.scatter(wl, snr_exp0, c='k', marker='.', label="expected SN 0 deg")
-        #plt.scatter(wl, snr_exp1, c='m', marker='.')
-        #plt.scatter(wl, snr_exp2, c='g', marker='.')
-        #plt.scatter(wl, snr_exp3, c='r', marker='.')
-        plt.plot(bin_wl, snr0, c='r', marker='+', ls='--', label="calculated", alpha=0.8)
-        plt.legend()
-        plt.show()
-
-        plt.plot(bin_wl, bin_fo0/bin_fo0_err, label="F/err 0 deg")
-        plt.show()
-
-        #snr0 = np.median((bin_fo0 + bin_fe0)/np.sqrt(bin_fo0_err**2 + bin_fe0_err**2))
-        #snr1 = np.median((bin_fo1 + bin_fe1)/np.sqrt(bin_fo1_err**2 + bin_fe1_err**2))
-        #snr2 = np.median((bin_fo2 + bin_fe2)/np.sqrt(bin_fo2_err**2 + bin_fe2_err**2))
-        #snr3 = np.median((bin_fo3 + bin_fe3)/np.sqrt(bin_fo3_err**2 + bin_fe3_err**2))
-
-        #print "Set ", i+1, " median SNR  ", bin_wl[0], bin_wl[1]
-        #print "SNR 0:", int(snr0), "SNR 22.5:", int(snr1), "SNR 45:", int(snr2), "SNR 67.5:", int(snr3)
-        #print "\n"
-        #print "noise 0:", np.median(np.sqrt(bin_fo0_err**2 + bin_fe0_err**2)), \
-        #      "noise 22.5:", np.median(np.sqrt(bin_fo1_err**2 + bin_fe1_err**2)), \
-        #      "noise 45:", np.median(np.sqrt(bin_fo2_err**2 + bin_fe2_err**2)), \
-        #      "noise 67.5:", np.median(np.sqrt(bin_fo3_err**2 + bin_fe3_err**2))
-
+        
         qls.append(q)
         qrls.append(qr)
         uls.append(u)
@@ -1282,7 +1293,6 @@ def circ_specpol(oray='ap2', hwrpafile = 'hwrpangles_v.txt', bin_size=None, e_mi
             print "No binning"
             return wl, f, r
         """
-
         wl = np.array(wl)
         f = np.array(f)
         r = np.array(r)
@@ -1308,10 +1318,7 @@ def circ_specpol(oray='ap2', hwrpafile = 'hwrpangles_v.txt', bin_size=None, e_mi
             i_wl_at_edge = min(range(len(wl[:-1])), key=lambda i: abs(edge-wl[i]))
             #this is to find the small bin that is closest to the edge of the new bin
             #print wl[i_wl_at_edge], small_bin_sizes[i_wl_at_edge]
-            #n = int((wl[i_wl_at_edge]-min(wl))/bin_siz) # number of the new bin
-            #print n
             ind_edge.append(i_wl_at_edge)
-        #print len(bin_edges), len(ind_edge)
 
         for i in range(len(wl)):
             n = int((wl[i]-min(wl))/bin_siz)
@@ -1320,43 +1327,35 @@ def circ_specpol(oray='ap2', hwrpafile = 'hwrpangles_v.txt', bin_size=None, e_mi
                 edge = bin_edges[j] # the edge to compare to wl[i] will then be at bin_edges[j]
 
                 if wl[i] < edge:
-                    #print wl[i_wl_at_edge]+wlerr[i_wl_at_edge]-edge, wlerr[i_wl_at_edge]*2
                     frac_overlap = (wl[i]+small_bin_sizes[i]/2-edge)/(small_bin_sizes[i])
-                    #print frac_overlap
-                    #print '\n'
-                    try:
-                        bins_f[n] += f[i]*weights[i]*frac_overlap
-                        bins_w[n] += weights[i]*frac_overlap
-                        bins_f[n+1] += f[i]*weights[i]*(1-frac_overlap)
-                        bins_w[n+1] += weights[i]*(1-frac_overlap)
-
-                        #bins_f[n] += f[i]*frac_overlap # trying just a sum instead of weighted average
-                        #bins_f[n+1] += f[i]*(1-frac_overlap)
-                    except IndexError:
-                        pass
-
-                elif wl[i] > edge:
-                    #print edge - (wl[i_wl_at_edge]-wlerr[i_wl_at_edge]), wlerr[i_wl_at_edge]*2
-                    frac_overlap = (wl[i]+small_bin_sizes[i]/2-edge)/(small_bin_sizes[i])
-                    #print frac_overlap
-                    #print '\n'
                     try:
                         bins_f[n] += f[i]*weights[i]*(1-frac_overlap)
                         bins_w[n] += weights[i]*(1-frac_overlap)
                         bins_f[n+1] += f[i]*weights[i]*frac_overlap
                         bins_w[n+1] += weights[i]*frac_overlap
 
-                        #bins_f[n] += f[i]*(1-frac_overlap) # trying just a sum instead of weighted average
-                        #bins_f[n+1] += f[i]*frac_overlap
                     except IndexError:
+                        print"Index Error at ", wl[i]
+                        pass
+
+                elif wl[i] > edge:
+                    frac_overlap = (wl[i]+small_bin_sizes[i]/2-edge)/(small_bin_sizes[i])
+                    try:
+                        bins_f[n] += f[i]*weights[i]*frac_overlap
+                        bins_w[n] += weights[i]*frac_overlap
+                        bins_f[n+1] += f[i]*weights[i]*(1-frac_overlap)
+                        bins_w[n+1] += weights[i]*(1-frac_overlap)
+
+                    except IndexError:
+                        print"Index Error at ", wl[i]
                         pass
 
             else:
                 try:
                     bins_f[n] += f[i]*weights[i]
                     bins_w[n] += weights[i]
-                    # bins_f[n] += f[i] # for sum instead of average
                 except IndexError:
+                    print"Index Error at ", wl[i]
                     pass
 
         for i in range(len(bin_centers)):
@@ -1366,17 +1365,7 @@ def circ_specpol(oray='ap2', hwrpafile = 'hwrpangles_v.txt', bin_size=None, e_mi
         bins_f[:-1] /= bins_w[:-1]  # normalise weighted values by sum of weights to get weighted average
         bins_err = np.sqrt(1/bins_w[:-1])
 
-        #bins_err =np.array([]) # for sum instead of average
-        #for bin_f in bins_f:
-        #    if bin_f >0:
-        #        bins_err = np.append(bins_err, np.sqrt(bin_f))
-        #    else:
-        #        bins_err = np.append(bins_err, 0)
-        #for wln, fn, errn in zip(bin_centers, bins_f, bins_err):
-        #    print wln, fn, errn
-
         return bin_centers[:-1], bins_f[:-1], bins_err
-        # return bin_centers, bins_f, bins_err # for sum instead of average
 
     def normalized_V(wl, fo, fo_err, fe, fe_err):
         """
@@ -1503,13 +1492,78 @@ def circ_specpol(oray='ap2', hwrpafile = 'hwrpangles_v.txt', bin_size=None, e_mi
     stdv_eps = []
 
     for i in range(len(ls_fo0)):
+        print "Set ", i+1
+        snr_nb0 =  np.array((ls_fo0[i] + ls_fe0[i])/np.sqrt(ls_fo0_err[i]**2 + ls_fe0_err[i]**2)) # SNR not binned
+        snr_nb1 =  np.array((ls_fo1[i] + ls_fe1[i])/np.sqrt(ls_fo1_err[i]**2 + ls_fe1_err[i]**2))
+
+        #print (wl[1]-wl[0])
+        snr_exp0 = snr_nb0*np.sqrt(bin_size/(wl[1]-wl[0])) # expected snr
+        #snr_exp1 = snr_nb1*np.sqrt(bin_size/(wl[1]-wl[0]))
+
+
+        ind_central_wl = int(np.argwhere(wl == min(wl, key=lambda x:abs(x-6204)))[0])
+        snr_nbc0 = snr_nb0[ind_central_wl]
+        snr_nbc1 = snr_nb1[ind_central_wl]
+
+        if bin_size is not None:
+            print "Rebinning to ",str(bin_size)," Angstrom"
+            bin_wl, bin_fo0, bin_fo0_err = rebin(wl, ls_fo0[i], ls_fo0_err[i])
+            bin_wl, bin_fe0, bin_fe0_err = rebin(wl, ls_fe0[i], ls_fe0_err[i])
+            bin_wl, bin_fo1, bin_fo1_err = rebin(wl, ls_fo1[i], ls_fo1_err[i])
+            bin_wl, bin_fe1, bin_fe1_err = rebin(wl, ls_fe1[i], ls_fe1_err[i])
+
+        elif bin_size is None:
+            print "Not Rebinning"
+            bin_wl, bin_fo0, bin_fo0_err = wl, ls_fo0[i], ls_fo0_err[i]
+            bin_wl, bin_fe0, bin_fe0_err = wl, ls_fe0[i], ls_fe0_err[i]
+            bin_wl, bin_fo1, bin_fo1_err = wl, ls_fo1[i], ls_fo1_err[i]
+            bin_wl, bin_fe1, bin_fe1_err = wl, ls_fe1[i], ls_fe1_err[i]
+
+
+        #v, verr, eps, eps_avg, eps_std = v_1set(bin_wl, bin_fo0, bin_fe0, bin_fo0_err, bin_fe0_err, bin_fo1, bin_fe1, bin_fo1_err, bin_fe1_err)
+        #v_ls.append(v)
+        #verr_ls.append(verr)
+        #ls_eps.append(eps)
+        #avg_eps.append(eps_avg)
+        #stdv_eps.append(eps_std)
+
+        ind_central_wl = int(np.argwhere(bin_wl == min(bin_wl, key=lambda x:abs(x-6204)))[0])
+        snr_c0 = (bin_fo0[ind_central_wl] + bin_fe0[ind_central_wl])/np.sqrt(bin_fo0_err[ind_central_wl]**2 + bin_fe0_err[ind_central_wl]**2)
+        snr_c1 = (bin_fo1[ind_central_wl] + bin_fe1[ind_central_wl])/np.sqrt(bin_fo1_err[ind_central_wl]**2 + bin_fe1_err[ind_central_wl]**2)
+
+        print "\n"
+
+        snr0 = (bin_fo0 + bin_fe0)/np.sqrt(bin_fo0_err**2 + bin_fe0_err**2)
+        #snr1 = (bin_fo1 + bin_fe1)/np.sqrt(bin_fo1_err**2 + bin_fe1_err**2)
+
+        snr_c_exp0 = snr_nbc0 * np.sqrt(bin_size/(wl[1]-wl[0]))
+        snr_c_exp1 = snr_nbc1 * np.sqrt(bin_size/(wl[1]-wl[0]))
+
+        print "--------- 0 ------ 22.5 ----- 45 ----- 67.5 -------- (CNTR WL ", int(bin_wl[ind_central_wl]),")"
+        print "CNTR WL THEORETICAL: ",int(snr_c_exp0), int(snr_c_exp1)
+        print "CNTR WL CALCULATED:  ",int(snr_c0), int(snr_c1)
+        print "CNTR WL RESIDUALS (EXPECTED SNR - OBTAINED)"
+        print snr_c_exp0 - snr_c0, snr_c_exp1 - snr_c1
+        print "\n"
+
+
+        plt.scatter(wl, snr_exp0, c='k', marker='.', label="expected SN 0 deg")
+        #plt.scatter(wl, snr_exp1, c='m', marker='.')
+        plt.plot(bin_wl, snr0, c='r', marker='+', ls='--', label="calculated", alpha=0.8)
+        plt.legend()
+        plt.show()
+
+        plt.plot(bin_wl, bin_fo0/bin_fo0_err, label="F/err 0 deg")
+        plt.show()
+
+    for i in range(len(ls_fo0)):
         print "Rebinning to ",str(bin_size)," Angstrom"
         bin_wl, bin_fo0, bin_fo0_err = rebin(wl, ls_fo0[i], ls_fo0_err[i])
         bin_wl, bin_fe0, bin_fe0_err = rebin(wl, ls_fe0[i], ls_fe0_err[i])
         bin_wl, bin_fo1, bin_fo1_err = rebin(wl, ls_fo1[i], ls_fo1_err[i])
         bin_wl, bin_fe1, bin_fe1_err = rebin(wl, ls_fe1[i], ls_fe1_err[i])
 
-    #for i in range(len(ls_fo0)):
+
         v, verr, eps, eps_avg, eps_std = v_1set(bin_wl, bin_fo0, bin_fe0, bin_fo0_err, bin_fe0_err, bin_fo1, bin_fe1, bin_fo1_err, bin_fe1_err)
         v_ls.append(v)
         verr_ls.append(verr)
@@ -1539,11 +1593,11 @@ def circ_specpol(oray='ap2', hwrpafile = 'hwrpangles_v.txt', bin_size=None, e_mi
     pol_file = raw_input('What do you want to name the polarisation file? ')
 
     try:
-        os.remove(pol_file)
+        os.remove(pol_file+'.pol')
     except:
          print 'kittens'
     for l in xrange(len(bin_wl)):
-        with open(pol_file, 'a') as pol_f:
+        with open(pol_file+'.pol', 'a') as pol_f:
             pol_f.write(str(bin_wl[l])+'    '+str(vf[l])+'    '+str(vf_err[l])+'\n')
 
     # ###### MAKING PLOT ########
@@ -1574,6 +1628,13 @@ def circ_specpol(oray='ap2', hwrpafile = 'hwrpangles_v.txt', bin_size=None, e_mi
     axarr[1].set_ylabel(r"$\Delta \epsilon", fontsize = 16)
     axarr[1].set_ylim([-6,0])
     plt.xlim([3500,10000])
+
+    save_cond = raw_input("do you want to save the plot?(Y/n): ")
+    if save_cond =="y" or save_cond=="Y" or save_cond=="":
+        plt.savefig(pol_file+".png")
+        print "Plot saved"
+    else:
+        print "Plot not saved"
 
     plt.show()
 
@@ -1791,8 +1852,14 @@ def lin_vband(oray = 'ap2', hwrpafile = 'hwrpangles.txt'):
         pavg, pavg_r, qavg, qavg_r, uavg, uavg_r, theta_v, theta_vr = vpol(o0, o1,o2,o3,e0, e1,e2,e3,o0_r,e0_r,o1_r,e1_r,o2_r,e2_r,o3_r,e3_r, wl_v)
         if theta_v <0:
             theta_v = 180+theta_v
-        
-    print pavg, pavg_r, qavg, qavg_r, uavg, uavg_r, theta_v, theta_vr
+    print "PAVG         PAVG_err"
+    print pavg, pavg_r
+    print "QAVG         QAVG_err" 
+    print qavg, qavg_r
+    print "UAVG         UAVG_err" 
+    print uavg, uavg_r
+    print "P.A          P.A_err"
+    print theta_v, theta_vr
     return pavg, pavg_r, qavg, qavg_r, uavg, uavg_r, theta_v, theta_vr
 
 

@@ -113,7 +113,7 @@ def get_spctr(filename, wlmin=0, wlmax=100000, err=False, scale=True):
         return wl, f
 
     else:
-        flux = np.loadtxt(filename, unpack=True, usecols=(0, 1))
+        flux = np.loadtxt(filename, unpack=True, usecols=(0, 1, 2))
         cond = (flux[0] > wlmin) & (flux[0] < wlmax)
         wl = flux[0][cond]
         f = flux[1][cond]
@@ -648,6 +648,8 @@ class PolData(object):
         self.uispr = np.std(crop[2])
         self.pisp = np.sqrt(self.qisp ** 2 + self.uisp ** 2)
         self.pispr = (1 / self.pisp) * np.sqrt((self.qisp * self.qispr) ** 2 + (self.uisp * self.uispr) ** 2)
+        if self.pisp > self.pispr:
+            self.pisp = self.pisp - (self.pispr**2)/self.pisp
         self.aisp = (0.5 * m.atan2(self.uisp, self.qisp)) * 180.0 / m.pi
         self.aispr = 0.5 * np.sqrt(((self.uispr / self.uisp) ** 2 + (self.qispr / self.qisp) ** 2) * (
         1 / (1 + (self.uisp / self.qisp) ** 2)) ** 2)

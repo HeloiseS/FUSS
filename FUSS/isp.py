@@ -23,7 +23,7 @@ def from_emline(filename_pol, filename_spctr, wlmin=4400, cont2ranges = False):
     # importing the data
     flux = F.get_spctr(filename_spctr, wlmin=wlmin, scale = False, err = True)
     pol = F.PolData('pol', filename_pol , wlmin=wlmin )
-
+    print len(flux)
     scale = np.median(flux[1])  # scale factor used for plotting later
 
     # Need to define figure and plot the spectrum before calling ig.def_ranges()
@@ -317,7 +317,7 @@ def linear_isp(wlp, gradq, constq, gradu, constu, covq=0, covu=0, q=None, qr=Non
 
     return new_stokes, isp
 
-def const_isp(wlp, qisp, qispr, uisp, uispr, q, qr, u, ur, bayesian_pcorr=True, p0_step=0.01):
+def const_isp(wlp, qisp, qispr, uisp, uispr, q, qr, u, ur, bayesian_pcorr=False, p0_step=0.01):
     """
     Removes single valued (constant with wavelength) isp from data
     :param wlp: wavelength bins of the data
@@ -332,6 +332,7 @@ def const_isp(wlp, qisp, qispr, uisp, uispr, q, qr, u, ur, bayesian_pcorr=True, 
     :return: new_stokes = [wlp, new p, new p error, new q, new q error, new u, new u error,
     new pol angle, new pol angle error]
     """
+    
     newq = q - qisp
     newu = u - uisp
     newqr = np.sqrt(qr ** 2 + qispr ** 2)
