@@ -1086,12 +1086,12 @@ def lin_specpol(oray='ap2', hwrpafile = 'hwrpangles.txt', bin_size = None, e_min
     for l in xrange(len(bin_wl)):
         with open(pol_file+".pol", 'a') as pol_f:
             pol_f.write(str(bin_wl[l])+'    '+str(pfinal[l])+'    '+str(prf[l])+'    '+str(qf[l])+'    '+str(qrf[l])+
-                        '    '+str(uf[l])+'    '+str(urf[l])+'    '+str(thetaf[l])+'    '+str(thetarf[l])+'\n')
+                        '    '+str(uf[l])+'    '+str(urf[l])+'    '+str(thetaf[l])+'    '+str(thetarf[l]) + '\n')
 
     # ###### MAKING PLOTS ########
     # Just to check that everything looks right.
 
-    f, axarr = plt.subplots(5, 1, figsize=(10, 20), sharex=True)
+    f, axarr = plt.subplots(5, 1, figsize=(8, 8), sharex=True)
     plt.subplots_adjust(hspace=0)
 
     # First axis is p

@@ -486,7 +486,7 @@ class PolData(object):
         1D array containing the error on the polarisation in each bin BEFORE ISP REMOVAL.
     """
 
-    def __init__(self, name, poldata, wlmin=None, wlmax=1000000):
+    def __init__(self, poldata, name=' ', wlmin=None, wlmax=1000000):
 
         if type(poldata) is str:
             pol0 = get_pol(poldata, wlmin=wlmin, wlmax=wlmax)
@@ -711,7 +711,7 @@ class PolData(object):
             self.qisp = None # this will be used as a condition for the method of isp removal in rmv_isp
         return
 
-    def rmv_isp(self, bayesian_pcorr=True, p0_step=0.01):
+    def rmv_isp(self, bayesian_pcorr=False, p0_step=0.01):
         # TODO: I need 2 tests for this. Maybe will need 14ad data for the constant case and 11hs for the linear case
         """
         Removes ISP and updates q, qr, u, ur, p, pr, a and ar.

@@ -18,12 +18,11 @@ def from_emline(filename_pol, filename_spctr, wlmin=4400, cont2ranges = False):
     :param cont2ranges: Boolean. If the continuum is the be defined by 2 ranges of values on either side of the line,
     set to True. If False, then the user should indicate the continuum by just two points on either side of the line.
     Default is False.
-    :return: pol_isp, pol_cont
+    :return: emline_wl, pol_isp, pol_cont
     """
     # importing the data
     flux = F.get_spctr(filename_spctr, wlmin=wlmin, scale = False, err = True)
     pol = F.PolData('pol', filename_pol , wlmin=wlmin )
-    print len(flux)
     scale = np.median(flux[1])  # scale factor used for plotting later
 
     # Need to define figure and plot the spectrum before calling ig.def_ranges()

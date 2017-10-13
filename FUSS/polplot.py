@@ -206,7 +206,7 @@ def data(pa, pa_r, vel):
         pa_end = pa[i] + pa_r[i]
 
         if pa_start < 0:
-            print pa[i], pa_r[i]
+            #print pa[i], pa_r[i]
             pa_start1 = 180-pa_start
             angle_range, vel1 = datum(pa_start1, 179.9, vel[i])
             pa_ranges = np.append(pa_ranges, [angle_range])
@@ -217,7 +217,7 @@ def data(pa, pa_r, vel):
             vel_ranges = np.append(vel_ranges, [vel1])
 
         elif pa_end > 180:
-            print pa[i], pa_r[i]
+            #print pa[i], pa_r[i]
             pa_end1 = pa_end-180
             angle_range, vel1 = datum(pa_start, 179.9, vel[i])
             pa_ranges = np.append(pa_ranges, [angle_range])
@@ -233,3 +233,42 @@ def data(pa, pa_r, vel):
             vel_ranges = np.append(vel_ranges, [vel1])
 
     return pa_ranges, vel_ranges
+    
+def polar_rect(theta1, theta2, vel1, vel2):
+    """
+    Creates the parameters to put in fill_between() in order to get a "polar rectangle"
+    
+    Parameters
+    ----------
+    theta1 : float
+        start of angular range to cover
+    theta2 : float 
+        end of angular range to cover 
+    vel1 : flaot
+        start of velocity range to cover
+    vel2 : float
+        end of velocity range to cover
+    
+    Return
+    ------
+    Tuple of 3 arrays: 
+        - angular coordinates to cover (size N)
+        - array containing vel1 N times
+        - array containing vel2 N times
+    """
+    angle_range = np.arange(theta1, theta2+0.1, 0.1)
+    vel_start=[abs(vel1)]*len(angle_range)
+    vel_end=[abs(vel2)]*len(angle_range)
+    return angle_range, np.array(vel_start), np.array(vel_end)
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
