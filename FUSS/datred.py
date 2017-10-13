@@ -1080,6 +1080,7 @@ def lin_specpol(oray='ap2', hwrpafile = 'hwrpangles.txt', bin_size = None, e_min
     pol_file = raw_input('What do you want to name the polarisation file? ')
     try:
         os.remove(pol_file+".pol")
+        os.remove(pol_file+".delta")
     except:
          print 'kittens'
 
@@ -1087,6 +1088,20 @@ def lin_specpol(oray='ap2', hwrpafile = 'hwrpangles.txt', bin_size = None, e_min
         with open(pol_file+".pol", 'a') as pol_f:
             pol_f.write(str(bin_wl[l])+'    '+str(pfinal[l])+'    '+str(prf[l])+'    '+str(qf[l])+'    '+str(qrf[l])+
                         '    '+str(uf[l])+'    '+str(urf[l])+'    '+str(thetaf[l])+'    '+str(thetarf[l]) + '\n')
+
+        # writing the file containing delta epsilon
+        # because delta_es is a list of lists the file write out is a bit convoluted
+        with open(pol_file+".delta", 'a') as delta_f:
+            if len(delta_es) > 1 : # Case were I have more than one list in delta_es if mroe than one set of data
+                for deltas in zip(*delta_es): # first I am zipping my lists. The * to unpack unknwon number of lists
+                    to_write = str(bin_wl[l]) # I am creating a variable to store my output string
+                    for delta in deltas: # then iterating over the values in each column
+                        to_write += '    '+ str(delta) # to add them onto the string
+                    to_write += '\n' # and when that's done I add the end of line character
+                    delta_f.write(to_write) # and finally write it into my file
+            else: # if I have only one list in delta_es then zip is going to fail and I can just do the following
+                for delta in delta_es[0]: # first I am zipping my lists
+                    delta_f.write(str(bin_wl[l])+'    '+ str(delta) +'\n')
 
     # ###### MAKING PLOTS ########
     # Just to check that everything looks right.
