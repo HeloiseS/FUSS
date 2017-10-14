@@ -1,6 +1,6 @@
 # TODO: Do I need to update this dosctring to have something show up in the documentation?
 """
-09 - May - 2017 / H. F. Stevance / fstevance1@sheffield.ac.uk
+14 - Oct - 2017 / H. F. Stevance / fstevance1@sheffield.ac.uk
 
 This is the main module of FUSS. It contains general utility functions, a couple of interactive routines and
 also defines a new class: PolData, to deal with specpol data.
@@ -165,13 +165,20 @@ def get_pol(filename, wlmin=0, wlmax=100000):
 
 
 def dopcor(val, z):
-    # TODO: update dosctring
     # TODO: Create test
     """
     Doppler Correction.
-    :param val: Array containing the data. val[0] MUST BE THE WAVELENGTH. NEED AT LEAST 2 COLUMNS!!
-    :param z: Redshift
-    :return: Array containing the data with the wavelength column doppler corrected.
+
+    Parameters
+    ----------
+    val : array
+        Array containing the data. val[0] MUST BE THE WAVELENGTH. NEED AT LEAST 2 COLUMNS!!
+    z : float
+        Redshift
+
+    Returns
+    --------
+    Array containing the data with the wavelength column doppler corrected.
     """
 
     values = np.array(val)  # need this in case val is not an array but a list
@@ -412,13 +419,13 @@ class PolData(object):
 
     Parameters
     ----------
-    name : str
-        A short handle to make your data object recognisable (e.g. 'ep1', '14ad')
     poldata : str or tuple
         The polarisation data can be imported from a text file containing only the data, where
         the column order is: wavelength p p_err q q_err u u_err a a_err.
         Alternatively a tuple of arrays containing the data can be provided. Make sure the order
         of the arrays in the tuple corresponds to wavelength p p_err q q_err u u_err a a_err.
+    name : str
+        A short handle to make your data object recognisable (e.g. 'ep1', '14ad')
     wlmin : int, optional
         Minimum wavelength cutoff
     wlmax : int, optional
