@@ -64,16 +64,30 @@ from mpl_toolkits.axisartist.grid_finder import MaxNLocator, DictFormatter
 def axis(fig, loc=111, num_ticks=1, phot_vel=None, vel_lim=[0, 30000], ang_grid ='ul', rad_grid = 'l'):
     """
     Sets up and returns the polar axis with no data. Data can be added later.
-    :param fig: e.g fig = plt.figure(1, figsize=(10, 4))
-    :param loc: Default = 111. Location of the subplot.
-    :param num_ticks: Scales the number of ticks. Default is 1. Actual number of ticks is:
-    int(maximum velocity/10000)*num_ticks
-    :param phot_vel: Photospheric velocity. Give absolut value
-    :param vel_lim: Velocity limits. Default [0, 30000]
-    :param ang_grid: How many lines on angular grid. 'h' for heavy, 'l' for light, 'ul' for ultra-light.
-    :param rad_grid: How many lines on radial grid. 'h' for heavy, 'l' for light, 'ul' for ultra-light, or specify where want the velocity grid using
-    a list of velocities (again give absolute values, no negative numbers). Default is 'l'.
-    :return: The polar plot! Now you can plot stuff on it.
+
+    Parameters
+    ----------
+    fig : matplotlib.figure.Figure
+        e.g fig = plt.figure(1, figsize=(10, 4))
+    loc :
+        Default = 111. Location of the subplot.
+    num_ticks : int
+        Scales the number of ticks. Default is 1. Actual number of ticks is int(maximum velocity/10000)*num_ticks
+    phot_vel : positive int
+        Photospheric velocity. Give absolute value.
+    vel_lim : positive int
+        Velocity limits. Default [0, 30000]
+    ang_grid : str
+        How many lines on angular grid. 'h' for heavy, 'l' for light, 'ul' for ultra-light.
+    rad_grid : str or list of int
+        How many lines on radial grid. 'h' for heavy, 'l' for light, 'ul' for ultra-light, or specify where you
+        want the velocity grid using a list of velocities (again give absolute values, no negative numbers).
+        Default is 'l'.
+
+    Returns
+    -------
+    tuple of axes: 1) The polar axis where you can plot things; 2) The axis on which the plot lays, which is where you
+    modify labels and label sizes, etc...
     """
 
     # This will rotate the axes by 90 deg anti-clockwise
@@ -100,7 +114,11 @@ def axis(fig, loc=111, num_ticks=1, phot_vel=None, vel_lim=[0, 30000], ang_grid 
 
     # Turns the radial tick labels from positive to negative. Maybe I could have just inverted radial axis
     # instead, but it was easier to copy those 2 lines from Emma's code since they work just fine.
-    v_ticks=[(2500, '-2500'), (5000, '-5,000'), (7500, '-7,500'), (10000, '-10,000'), (12500, '-12,500'), (15000,'-15,000'), (17500, '-17,500'), (20000, '-20,000'),(22500, '-22500'), (25000, '-25,000'), (27500, '-27,500'), (30000, '-30,000'),(32500, '-32500'), (35000, '-35,000'), (37500, '-37,500'), (40000, '-40,000')] 
+    v_ticks=[(2500, '-2500'), (5000, '-5,000'), (7500, '-7,500'), (10000, '-10,000'), (12500, '-12,500'),
+             (15000,'-15,000'), (17500, '-17,500'), (20000, '-20,000'),(22500, '-22500'), (25000, '-25,000'),
+             (27500, '-27,500'), (30000, '-30,000'),(32500, '-32500'), (35000, '-35,000'), (37500, '-37,500'),
+             (40000, '-40,000')]
+
     tick_formatter2 = DictFormatter(dict(v_ticks))
     grid_locator2 = MaxNLocator(int(vel_lim[1]/10000)*num_ticks) # Set up number of ticks for the r-axis
 
@@ -156,7 +174,8 @@ def axis(fig, loc=111, num_ticks=1, phot_vel=None, vel_lim=[0, 30000], ang_grid 
 
     # Radial markings for the vel. Predefined "heavy", "light" or "ultra-light" option, or user can use their own list
     if rad_grid == 'h':
-        mark_vel=[2500, 5000, 7500, 10000, 12500, 15000, 17500, 20000, 22500, 25000, 27500,30000, 32500, 35000, 37500, 40000]  
+        mark_vel=[2500, 5000, 7500, 10000, 12500, 15000, 17500, 20000, 22500, 25000, 27500,
+                  30000, 32500, 35000, 37500, 40000]
     if rad_grid == 'l':
         mark_vel=[5000, 10000, 15000, 20000, 25000, 30000,35000,40000] 
     if rad_grid == 'ul':
@@ -174,7 +193,8 @@ def axis(fig, loc=111, num_ticks=1, phot_vel=None, vel_lim=[0, 30000], ang_grid 
         phot = datum(0, 180, phot_vel)
         aux_ax.plot(phot[0], phot[1], lw=3, c='k')
     
-    return aux_ax
+    
+    return aux_ax, ax1
 
 
 def datum(pa_start, pa_end, vel):
@@ -236,7 +256,7 @@ def data(pa, pa_r, vel):
     
 def polar_rect(theta1, theta2, vel1, vel2):
     """
-    Creates the parameters to put in fill_between() in order to get a "polar rectangle"
+    Creates the parameters to put in fill_between() in order to get a "polar rectangle" -> a 2D arc
     
     Parameters
     ----------

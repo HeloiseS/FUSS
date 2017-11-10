@@ -51,6 +51,7 @@ import matplotlib.pyplot as plt
 import pysynphot as S
 from scipy import special as special
 from astropy.utils.data import get_pkg_data_filename
+import re
 
 # ###### LOCATION OF FILE CONTAINING CHROMATIC ZERO ANGLES ######### #
 zero_angles = get_pkg_data_filename('data/theta_fors2.txt')
@@ -129,37 +130,37 @@ def sort_red():
                 head = hdulist[0].header['HIERARCH ESO DPR TYPE']
                 if head == 'BIAS':
                     bias=bias+1
-                    new_name='BIAS_'+str(bias).zfill(2)+".fits"
+                    new_name='BIAS_'+str(bias).zfill(3)+".fits"
                     os.rename(filename, new_name)
                     os.system('mv '+new_name+' Data_reduction')
                 if head == 'FLAT,LAMP':
                     flat=flat+1
-                    new_name='FLAT_'+str(flat).zfill(2)+".fits"
+                    new_name='FLAT_'+str(flat).zfill(3)+".fits"
                     os.rename(filename, new_name)
                     os.system('mv '+new_name+' Data_reduction')
                 if head == 'WAVE,LAMP':
                     arc=arc+1
-                    new_name='ARC_'+str(arc).zfill(2)+".fits"
+                    new_name='ARC_'+str(arc).zfill(3)+".fits"
                     os.rename(filename, new_name)
                     os.system('mv '+new_name+' Data_reduction')
                 if head == 'OBJECT':
                     sci=sci+1
-                    new_name='SCIENCE_'+str(sci).zfill(2)+".fits"
+                    new_name='SCIENCE_'+str(sci).zfill(3)+".fits"
                     os.rename(filename, new_name)
                     os.system('mv '+new_name+' Data_reduction')
                 if head == 'STD':
                     sci=sci+1
-                    new_name='SCIENCE_'+str(sci).zfill(2)+".fits"
+                    new_name='SCIENCE_'+str(sci).zfill(3)+".fits"
                     os.rename(filename, new_name)
                     os.system('mv '+new_name+' Data_reduction')
                 if head == 'SKY':
                     sky=sky+1
-                    new_name='SKY_'+str(sky).zfill(2)+".fits"
+                    new_name='SKY_'+str(sky).zfill(3)+".fits"
                     os.rename(filename, new_name)
                     os.system('mv '+new_name+' Other')
                 if head == 'SLIT':
                     slit=slit+1
-                    new_name='SLIT_'+str(slit).zfill(2)+".fits"
+                    new_name='SLIT_'+str(slit).zfill(3)+".fits"
                     os.rename(filename, new_name)
                     os.system('mv '+new_name+' Other')
 
@@ -489,7 +490,22 @@ def lin_specpol(oray='ap2', hwrpafile = 'hwrpangles.txt', bin_size = None, e_min
         ls_fo3_err=[]
         ls_fe3_err=[]
 
+        valid1 = re.compile('SCI')
+        valid2 = re.compile('STD')
+        find_nbr = re.compile('\d{1,3}')  # This is what we'll look for in filename: a number 1-3 digits long
+                                               # The first part searches for the
+
         for filename in sorted_files:
+            nbr_in_file_name = "PasLa"
+            # finding the number in the filename. Searched through filename for a 1-3 digit number and returns it.
+            try:
+                if valid1.search(filename) or  valid2.search(filename):
+                    nbr_in_file_name = find_nbr.search(filename[1:]).group()
+                    # removing first character as files start with a 1 usually and that messes things up
+            except AttributeError:
+                print "Couldn't find a number in this filename - passing"
+                pass
+
             # This condition is related to the naming convention I have adopted.
             if 'c_' not in filename:
                 # The following compares the number in the filename to the number in ls_0 to see if the image
@@ -498,7 +514,8 @@ def lin_specpol(oray='ap2', hwrpafile = 'hwrpangles.txt', bin_size = None, e_min
                 # flux and flux_error files, respectively.
 
                 # Francesco: Use regex to look for \w*?_\d{2}*? check the regex codes
-                if filename[-10:-8] in ls_0 or filename[-14:-12] in ls_0:
+
+                if nbr_in_file_name in ls_0:
                     # Now we put the filename in the right list, oray or eray and flux or error on flux.
                     if oray in filename:
                         if 'err' not in filename:
@@ -517,7 +534,7 @@ def lin_specpol(oray='ap2', hwrpafile = 'hwrpangles.txt', bin_size = None, e_min
                             ls_fe0_err.append(fe)
 
                 # Same thing as the first loop but for 22.5 HWRP
-                if filename[-10:-8] in ls_1 or filename[-14:-12] in ls_1:
+                if nbr_in_file_name in ls_1:
                     if oray in filename:
                         if 'err' not in filename:
                             wl, fo = np.loadtxt(filename, unpack=True, usecols=(0,1))
@@ -535,7 +552,7 @@ def lin_specpol(oray='ap2', hwrpafile = 'hwrpangles.txt', bin_size = None, e_min
                             ls_fe1_err.append(fe)
 
                 # Same thing as the first loop but for 45 HWRP
-                if filename[-10:-8] in ls_2 or filename[-14:-12] in ls_2:
+                if nbr_in_file_name in ls_2:
                     if oray in filename:
                         if 'err' not in filename:
                             wl, fo = np.loadtxt(filename, unpack=True, usecols=(0,1))
@@ -553,7 +570,7 @@ def lin_specpol(oray='ap2', hwrpafile = 'hwrpangles.txt', bin_size = None, e_min
                             ls_fe2_err.append(fe)
 
                 # Same thing as the first loop but for 67.5 HWRP
-                if filename[-10:-8] in ls_3 or filename[-14:-12] in ls_3:
+                if nbr_in_file_name in ls_3:
                     if oray in filename:
                         if 'err' not in filename:
                             wl, fo = np.loadtxt(filename, unpack=True, usecols=(0,1))
@@ -1241,14 +1258,29 @@ def circ_specpol(oray='ap2', hwrpafile = 'hwrpangles_v.txt', bin_size=None, e_mi
         ls_fo1_err=[]
         ls_fe1_err=[]
 
+        valid1 = re.compile('SCI')
+        valid2 = re.compile('STD')
+        find_nbr = re.compile('\d{1,3}')  # This is what we'll look for in filename: a number 1-3 digits long
+                                               # The first part searches for the
+
         for filename in sorted_files:
+            nbr_in_file_name = "PasLa"
+            # finding the number in the filename. Searched through filename for a 1-3 digit number and returns it.
+            try:
+                if valid1.search(filename) or  valid2.search(filename):
+                    nbr_in_file_name = find_nbr.search(filename[1:]).group()
+                    # removing first character as files start with a 1 usually and that messes things up
+            except AttributeError:
+                print "Couldn't find a number in this filename - passing"
+                pass
+
             # This condition is related to the naming convention I have adopted.
             if 'c_' not in filename:
                 # The following compares the number in the filename to the number in ls_0 to see if the image
                 # correspond to a 0 deg HWRP angle set up. The naming convention is crucial for this line to work
                 # as it keeps the number in the filename in the location: filename[-10:-8] or filename[-14:-12] for
                 # flux and flux_error files, respectively.
-                if filename[-10:-8] in ls_0 or filename[-14:-12] in ls_0:
+                if nbr_in_file_name in ls_0:
                     # Now we put the filename in the right list, oray or eray and flux or error on flux.
                     if oray in filename:
                         if 'err' not in filename:
@@ -1266,8 +1298,8 @@ def circ_specpol(oray='ap2', hwrpafile = 'hwrpangles_v.txt', bin_size=None, e_mi
                             wl, fe = np.loadtxt(filename, unpack=True, usecols=(0,1))
                             ls_fe0_err.append(fe)
 
-                # Same thing as the first loop but for 22.5 HWRP
-                if filename[-10:-8] in ls_1 or filename[-14:-12] in ls_1:
+                # Same thing as the first loop but for 45 HWRP
+                if nbr_in_file_name in ls_1:
                     if oray in filename:
                         if 'err' not in filename:
                             wl, fo = np.loadtxt(filename, unpack=True, usecols=(0,1))
@@ -1764,7 +1796,21 @@ def lin_vband(oray = 'ap2', hwrpafile = 'hwrpangles.txt'):
 
     sorted_files = sorted(list_file)
 
+    valid1 = re.compile('SCI')
+    valid2 = re.compile('STD')
+    find_nbr = re.compile('\d{1,3}')  # This is what we'll look for in filename: a number 1-3 digits long
+                                           # The first part searches for the
+
     for filename in sorted_files:
+        nbr_in_file_name = "PasLa"
+        # finding the number in the filename. Searched through filename for a 1-3 digit number and returns it.
+        try:
+            if valid1.search(filename) or  valid2.search(filename):
+                nbr_in_file_name = find_nbr.search(filename[1:]).group()
+                # removing first character as files start with a 1 usually and that messes things up
+        except AttributeError:
+            print "Couldn't find a number in this filename - passing"
+            pass
 
         if 'dSC'in filename and 'c_' not in filename and '.fits' not in filename:
             vflux=v_counts(filename, bp_v) # finds counts across Vband given spectrum
@@ -1772,7 +1818,7 @@ def lin_vband(oray = 'ap2', hwrpafile = 'hwrpangles.txt'):
             counts_r = np.sqrt(np.sum(vflux[1]**2))  # Poisson noise
 
             # very similar to what's done in get_data() in lin_specpol() so refer to that
-            if filename[-10:-8] in list_0 or filename[-14:-12] in list_0:
+            if nbr_in_file_name in list_0:
                 if oray in filename:      
                     if 'err' not in filename:
                         o0=np.append(o0, counts)
@@ -1786,7 +1832,7 @@ def lin_vband(oray = 'ap2', hwrpafile = 'hwrpangles.txt'):
                     else:
                         e0_r=np.append(e0_r, counts_r)
 
-            if filename[-10:-8] in list_1 or filename[-14:-12] in list_1:
+            if nbr_in_file_name in list_1:
                 if oray in filename:
                    # print filename
                     if 'err' not in filename:
@@ -1801,7 +1847,7 @@ def lin_vband(oray = 'ap2', hwrpafile = 'hwrpangles.txt'):
                     else:
                         e1_r=np.append(e1_r, counts_r)
 
-            if filename[-10:-8] in list_2 or filename[-14:-12] in list_2:
+            if nbr_in_file_name in list_2:
                 if oray in filename:
                    # print filename
                     if 'err' not in filename:
@@ -1816,7 +1862,7 @@ def lin_vband(oray = 'ap2', hwrpafile = 'hwrpangles.txt'):
                     else:
                         e2_r=np.append(e2_r, counts_r)
 
-            if filename[-10:-8] in list_3 or filename[-14:-12] in list_3:
+            if nbr_in_file_name in list_3:
                 if oray in filename:
                    # print filename
                     if 'err' not in filename:
