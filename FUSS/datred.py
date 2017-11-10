@@ -81,33 +81,17 @@ def sort_red():
     os.system('uncompress *.Z')
     os.system('rm -f *.Z')
 
-    # Instead of creating an actual file I could I have put the filenames in a list and sorted the list
-    # It works and I won't change it cuz I am lazy.
-    for filename in os.listdir("."):
-
-        with open("files.txt","a") as f:
-            f.write(filename+'\n')
-            f.close()
-
-    os.system('sort files.txt > ordered_files.txt')
-
-    with open('ordered_files.txt') as f:
-        content = f.readlines()
-
-    filename_list = []
-
-    for i in xrange(len(content)):
-        filename_list.append(content[i][:-1])
+    filename_list = sorted([filename for filename in os.listdir(".")])
 
     os.system('mkdir Data_reduction')
     os.system('mkdir Other')
 
-    bias=0
-    arc=0
-    flat=0
-    sky=0
-    sci=0
-    slit=0
+    bias = 0
+    arc = 0
+    flat = 0
+    sky = 0
+    sci = 0
+    slit = 0
     os.system('mkdir CHIP2')
 
     # We don't use CHIP 2 with FORS2 so I put all those in a separate folder
@@ -261,9 +245,10 @@ def info():
                 airm = 'None'
 
             with open('image_info.txt', 'a') as f:
-                f.write(filename[:-5].ljust(15)+str(name).ljust(23)+str(angle).ljust(7)+str(exptime).ljust(10)+
-                        str(airm).ljust(8)+str(grism).ljust(12)+binning.ljust(5)+str(size_x).ljust(5)+
-                        str(one_over_gain).ljust(7)+str(ron).ljust(5)+str(date)+"\n")
+                f.write(filename[:-5].ljust(15) + str(name).ljust(23) + str(angle).ljust(7)
+                        + str(exptime).ljust(10) + str(airm).ljust(8) + str(grism).ljust(12)
+                        + binning.ljust(5) + str(size_x).ljust(5) + str(one_over_gain).ljust(7)
+                        + str(ron).ljust(5) + str(date)+"\n")
 
     os.system("sort image_info.txt -o image_info.txt")  # To have filenames written out  alphabetically
 
@@ -395,105 +380,23 @@ def hwrpangles(sn_name = 'CCSN', zeropol_name = 'Zero_', polstd_name='NGC2024'):
     return 
 
 
-# ################# SPECPOL. IT'S BIG WITH NESTED FUNCTIONS - MAYBE BAD CODE, BUT IT WORKS ####################### #
+# ####################### Creating a class #################
+"""
+class DataFilesLinPol(object):
+    def __init__(self, hwrpangle_file = 'hwrpangles.txt'):
 
+        ls_0, ls_1, ls_2, ls3 = np.loadtxt(hwrpangle_file, unpack = True, usecols=(0,1,2,3))
 
-def lin_specpol(oray='ap2', hwrpafile = 'hwrpangles.txt', bin_size = None, e_min_wl = 3775, bayesian_pcorr=False, p0_step = 0.01):
-    """
-    Calculates the Stokes parameters and P.A of a data set and writes them out in a text file.
+        sorted_files = sorted([name for name in os.listdir('.'])
 
-    Notes
-    -----
-    A plot showing p, q, u, P.A and Delta epsilon_q and Delta epsilon_u is produced. The plots are not automatically
-    saved.
-
-    Parameters
-    ----------
-    oray : string, optional
-        Which aperture corresponds to the ordinary ray: 'ap1' or 'ap2'. Default is 'ap2'.
-    hwrpafile : string, optional
-        The file telling lin_specpol() which image corresponds to which HWRP angle. Created by hwrpangles().
-        Default is 'hwrpangles.txt'
-    bin_size : int, optional
-        Size of the wavelength bins in Angstrom. Default is 15A.
-    e_min_wl : string, optional
-        The first wavelength of the range within which Delta epsilons will be calculated. Default is 3775 (ang).
-    bayesian_pcorr : bool, optional
-        Turns on or off the bayesian p debiasing method (J. L. Quinn 2012). If False then the step function method will
-        be used (wang et al 1997). Default is False. Does not work if p large and errors small.
-    p0_step : float, optional
-        Step size (and starting point) of the p0 distribution. If the step is larger that an observed value of p then
-        the code will fail, and you should decrease the step size. Also increases the run time significantly.
-        Default is 0.01
-    """
-    if oray=='ap2':
-        eray='ap1'
-    elif oray=='ap1':
-        eray='ap2'
-
-    #########################################
-    #                LIN_SPECPOL            #
-    #########################################
-        
-    def get_data(ls_0, ls_1, ls_2, ls_3):
-        """
-        This takes the flux data from the text files given by IRAF and sorts them in lists for later use.
-
-        Notes
-        -----
-        For lin_specpol() use only.
-
-        /!\ start wavelength and dispersion for each data file should be the same /!\
-
-    `   Parameters
-        ----------
-        ls_0 : list of ints
-            list of file number for files containing dat at 0 deg
-        ls_1 : list of ints
-            list of file number for files containing dat at 22.5 deg
-        ls_2 : list of ints
-            list of file number for files containing dat at 45 deg
-        ls_3: list of ints
-            list of file number for files containing dat at 67.5 deg
-
-        Returns
-        -------
-        Lists for wl, o and r ray for each angle and errors for o and ray for each angle:
-        wl, ls_fo0, ls_fe0, ls_fo0_err, ls_fe0_err, ls_fo1, ls_fe1, ls_fo1_err, ls_fe1_err, ls_fo2,
-        ls_fe2, ls_fo2_err, ls_fe2_err, ls_fo3, ls_fe3, ls_fo3_err, ls_fe3_err
-        """
-
-        # Need to do this because python doesn't read files in alphabetical order but in order they
-        # are written on the disc
-        list_file=[]
-        for name in os.listdir('.'):
-            list_file.append(name)
-        sorted_files = sorted(list_file)
-
-        ls_fo0=[]
-        ls_fe0=[]
-        ls_fo0_err=[]
-        ls_fe0_err=[]
-
-        ls_fo1=[]
-        ls_fe1=[]
-        ls_fo1_err=[]
-        ls_fe1_err=[]
-
-        ls_fo2=[]
-        ls_fe2=[]
-        ls_fo2_err=[]
-        ls_fe2_err=[]
-
-        ls_fo3=[]
-        ls_fe3=[]
-        ls_fo3_err=[]
-        ls_fe3_err=[]
+        files0 = None
+        files22 = None
+        files45 = None
+        files67 = None
 
         valid1 = re.compile('SCI')
         valid2 = re.compile('STD')
         find_nbr = re.compile('\d{1,3}')  # This is what we'll look for in filename: a number 1-3 digits long
-                                               # The first part searches for the
 
         for filename in sorted_files:
             nbr_in_file_name = "PasLa"
@@ -587,8 +490,7 @@ def lin_specpol(oray='ap2', hwrpafile = 'hwrpangles.txt', bin_size = None, e_min
                             wl, fe = np.loadtxt(filename, unpack=True, usecols=(0,1))
                             ls_fe3_err.append(fe)
 
-        return wl, ls_fo0, ls_fe0, ls_fo0_err, ls_fe0_err, ls_fo1, ls_fe1, ls_fo1_err, ls_fe1_err, ls_fo2, ls_fe2, ls_fo2_err, ls_fe2_err, ls_fo3, ls_fe3, ls_fo3_err, ls_fe3_err
-
+"""
     def rebin(wl, f, r, bin_siz=bin_size):
         """
         To rebin my flux spectra
@@ -685,35 +587,205 @@ def lin_specpol(oray='ap2', hwrpafile = 'hwrpangles.txt', bin_size = None, e_min
 
         return bin_centers[:-1], bins_f[:-1], bins_err
 
-    def norm_flux(fo, fe, fo_r, fe_r):
-        """
-        For lin_specpol() use only. Finds normalised flux and error.
+class OERay(object):
+    """
+    This contains the ordinary and extra ordinary rays of one single frame and other info
+    """
+    def __init__(self, wl, orayflux, orayflux_r, erayflux, erayflux_r):
+        self.wl = wl
+        self.o = orayflux
+        self.o_r = orayflux_r
+        self.e = erayflux
+        self.e_r = erayflux_r
+        self.F = None
+        self.F_r = np.array([])
 
-        Parameters
+    def norm_flux_diff(self):
+        self.F = (self.fo - self.e_r) / (self.fo + self.fe)
+        self.F_r = m.fabs(self.F) * np.sqrt( ( (self.fo_r**2) + (self.fe_r**2) ) *
+                                             ( ( 1/(self.fo-self.fe)**2 )+ (1/(self.fo+self.fe)**2 ) ) )
+
+        return self.F, self.F_r
+
+# keeping this as separate funciton because makign instance within the function means they can be forgotten
+# when come out of it and not take up too much memory
+def flux_diff_from_file(filename, ordinary_ray = oray, extra_ray = eray, bin_size=None):
+    if ordinary_ray in filename:
+        if 'err' not in filename:
+            wl, fo = np.loadtxt(filename, unpack=True, usecols=(0,1))
+        else:
+            wl, fo_r = np.loadtxt(filename, unpack=True, usecols=(0,1))
+
+    if extra_ray in filename:
+        if 'err' not in filename:
+            wl, fe = np.loadtxt(filename, unpack=True, usecols=(0,1))
+        else:
+            wl, fe_r = np.loadtxt(filename, unpack=True, usecols=(0,1))
+
+    # BINNING
+    if bin_size is None:
+        fo_bin, fo_bin_r, fe_bin, fe_bin_r = fo, fo_r, fe, fe_r
+
+    else:
+        wl, fo_bin, fo_bin_r, rebin(wl, fo, fo_r, bin_siz=bin_size)
+        wl, fe_bin, fe_bin_r, rebin(wl, fe, fe_r, bin_siz=bin_size)
+
+
+    data_object = OERay(wl, fo_bin, fo_bin_r, fe_bin, fe_bin_r)
+    F, F_r = data_object.norm_flux_diff()
+
+    return wl, F , F_r
+
+
+
+def pol_deg(q, q_r = None, u, u_r = None):
+    p = np.sqrt(q*q + u*u)
+    if q_r or u_r is None:
+        return p
+    p_r = (1/p) * np.sqrt( (q*q_r)**2 + (u*u_r)**2 )
+    return p, p_r
+
+
+# ################# SPECPOL. IT'S BIG WITH NESTED FUNCTIONS - MAYBE BAD CODE, BUT IT WORKS ####################### #
+
+
+def lin_specpol(oray='ap2', hwrpafile = 'hwrpangles.txt',
+                bin_size = None, e_min_wl = 3775,
+                bayesian_pcorr=False, p0_step = 0.01):
+    """
+    Calculates the Stokes parameters and P.A of a data set and writes them out in a text file.
+
+    Notes
+    -----
+    A plot showing p, q, u, P.A and Delta epsilon_q and Delta epsilon_u is produced. The plots are not automatically
+    saved.
+
+    Parameters
+    ----------
+    oray : string, optional
+        Which aperture corresponds to the ordinary ray: 'ap1' or 'ap2'. Default is 'ap2'.
+    hwrpafile : string, optional
+        The file telling lin_specpol() which image corresponds to which HWRP angle. Created by hwrpangles().
+        Default is 'hwrpangles.txt'
+    bin_size : int, optional
+        Size of the wavelength bins in Angstrom. Default is 15A.
+    e_min_wl : string, optional
+        The first wavelength of the range within which Delta epsilons will be calculated. Default is 3775 (ang).
+    bayesian_pcorr : bool, optional
+        Turns on or off the bayesian p debiasing method (J. L. Quinn 2012). If False then the step function method will
+        be used (wang et al 1997). Default is False. Does not work if p large and errors small.
+    p0_step : float, optional
+        Step size (and starting point) of the p0 distribution. If the step is larger that an observed value of p then
+        the code will fail, and you should decrease the step size. Also increases the run time significantly.
+        Default is 0.01
+    """
+    if oray=='ap2':
+        eray='ap1'
+    elif oray=='ap1':
+        eray='ap2'
+
+    #########################################
+    #                LIN_SPECPOL            #
+    #########################################
+        
+    def get_data(ls_0, ls_1, ls_2, ls_3):
+        """
+        This takes the flux data from the text files given by IRAF and sorts them in lists for later use.
+
+        Notes
+        -----
+        For lin_specpol() use only.
+
+        /!\ start wavelength and dispersion for each data file should be the same /!\
+
+    `   Parameters
         ----------
-        fo : array
-            Array containing the ordinary spectrum
-        fe : array
-            Array containing the extra-ordinary spectrum
-        fo_r : array
-            Array containing the ordinary error spectrum
-        fe_r : array
-            Array containing the extra-ordinary error spectrum
+        ls_0 : list of ints
+            list of file number for files containing dat at 0 deg
+        ls_1 : list of ints
+            list of file number for files containing dat at 22.5 deg
+        ls_2 : list of ints
+            list of file number for files containing dat at 45 deg
+        ls_3: list of ints
+            list of file number for files containing dat at 67.5 deg
 
         Returns
         -------
-        arrays
-            The F and F_r arrays (the normalised flux and error on normalised flux)
-
+        Lists for wl, o and r ray for each angle and errors for o and ray for each angle:
+        wl, ls_fo0, ls_fe0, ls_fo0_err, ls_fe0_err, ls_fo1, ls_fe1, ls_fo1_err, ls_fe1_err, ls_fo2,
+        ls_fe2, ls_fo2_err, ls_fe2_err, ls_fo3, ls_fe3, ls_fo3_err, ls_fe3_err
         """
-        F = (fo - fe)/(fo + fe)
-        F_r = np.array([])
-        for i in range(len(fo)):
-            F_ri = m.fabs(F[i]) * np.sqrt( ( (fo_r[i]**2) + (fe_r[i]**2) ) * ( ( 1/(fo[i]-fe[i])**2 )+ (1/(fo[i]+fe[i])**2 ) ) )
-            F_r=np.append(F_r,F_ri)
-        return F, F_r
 
-    def specpol(wl, fo0, fe0, fo0_r, fe0_r, fo1, fe1, fo1_r, fe1_r, fo2, fe2, fo2_r, fe2_r, fo3, fe3, fo3_r, fe3_r):
+        # Need to do this because python doesn't read files in alphabetical order but in order they
+        # are written on the disc
+        list_file=[]
+        for name in os.listdir('.'):
+            list_file.append(name)
+        sorted_files = sorted(list_file)
+
+        ls_F0 = []
+        ls_F0_r = []
+
+        ls_F1 = []
+        ls_F1_r = []
+
+        ls_F2 = []
+        ls_F2_r = []
+
+        ls_F3 = []
+        ls_F3_r = []
+
+
+        valid1 = re.compile('SCI')
+        valid2 = re.compile('STD')
+        find_nbr = re.compile('\d{1,3}')  # This is what we'll look for in filename: a number 1-3 digits long
+                                               # The first part searches for the
+
+        for filename in sorted_files:
+            nbr_in_file_name = "PasLa"
+            # finding the number in the filename. Searched through filename for a 1-3 digit number and returns it.
+            try:
+                if valid1.search(filename) or  valid2.search(filename):
+                    nbr_in_file_name = find_nbr.search(filename[1:]).group()
+                    # removing first character as files start with a 1 usually and that messes things up
+            except AttributeError:
+                print "Couldn't find a number in this filename - passing"
+                pass
+
+            # This condition is related to the naming convention I have adopted.
+            if 'c_' not in filename:
+                # The following compares the number in the filename to the number in ls_0 to see if the image
+                # correspond to a 0 deg HWRP angle set up. The naming convention is crucial for this line to work
+                # as it keeps the number in the filename in the location: filename[-10:-8] or filename[-14:-12] for
+                # flux and flux_error files, respectively.
+
+                # Francesco: Use regex to look for \w*?_\d{2}*? check the regex codes
+
+                if nbr_in_file_name in ls_0:
+                    wl0, F0, F0_r = flux_diff_from_file(filename, ordinary_ray = oray, extra_ray = eray)
+                    ls_F0.append(F0)
+                    ls_F0_r.append(F0_r)
+                # Same thing as the first loop but for 22.5 HWRP
+                if nbr_in_file_name in ls_1:
+                    wl1, F1, F1_r = flux_diff_from_file(filename, ordinary_ray = oray, extra_ray = eray)
+                    ls_F1.append(F0)
+                    ls_F1_r.append(F0_r)
+                # Same thing as the first loop but for 45 HWRP
+                if nbr_in_file_name in ls_2:
+                    wl2, F2, F2_r = flux_diff_from_file(filename, ordinary_ray = oray, extra_ray = eray)
+                    ls_F2.append(F0)
+                    ls_F2_r.append(F0_r)
+                # Same thing as the first loop but for 67.5 HWRP
+                if nbr_in_file_name in ls_3:
+                    wl3, F3, F3_r = flux_diff_from_file(filename, ordinary_ray = oray, extra_ray = eray)
+                    ls_F3.append(F0)
+                    ls_F3_r.append(F0_r)
+
+        assert len(wl0) == len(wl1) == len(wl2) == len(wl3), "Wavelength bins not homogenous. This will be an issue."
+
+        return wl0, ls_F0, ls_F0_r, ls_F1, ls_F1_r, ls_F2, ls_F2_r, ls_F3, ls_F3_r
+
+    def specpol(wl, F0, F0_r, F1, F1_r, F2, F2_r, F3, F3_r):
         """
         Finds the p, q, u, theta and errors on these quantities for a set of spectropolarimetric data.
 
@@ -725,32 +797,7 @@ def lin_specpol(oray='ap2', hwrpafile = 'hwrpangles.txt', bin_size = None, e_min
         ----------
         wl : array
             Wavelengths
-        fo0 : array
-            o ray at 0 deg
-        fe0 : array
-            e ray at 0 deg
-        fo0_r : array
-            error on o ray at 0 deg
-        fe0_r : array
-            error on e ray at 0 deg
-        fo1 : array
-        fe1 : array
-        fo1_r : array
-        fe1_r : array
-        fo2 : array
-        fe2 : array
-        fo2_r : array
-        fe2_r : array
-        fo3 : array
-        fe3 : array
-        fo3_r : array
-        fe3_r : array
-        delta_e : array
-            Epsilon at each wl bin.
-        avg_e : float
-            Average epsilon
-        stdv_e : float
-            Standard dev of epsilon
+
 
         Returns
         -------
@@ -759,19 +806,12 @@ def lin_specpol(oray='ap2', hwrpafile = 'hwrpangles.txt', bin_size = None, e_min
             errors.
         """
 
-        # Calculating the normalised fluxes for all 4 HWRP angles.
-        F0,F0_r = norm_flux(fo0, fe0, fo0_r, fe0_r)
-        F1,F1_r = norm_flux(fo1, fe1, fo1_r, fe1_r)
-        F2,F2_r = norm_flux(fo2, fe2, fo2_r, fe2_r)
-        F3,F3_r = norm_flux(fo3, fe3, fo3_r, fe3_r)
-
         # Now Stokes parameters and degree of pol.
         q = 0.5*(F0-F2)
         u = 0.5*(F1-F3)
         q_r = 0.5*np.sqrt(F0_r**2 + F2_r**2)
         u_r = 0.5*np.sqrt(F1_r**2 + F3_r**2)
-        p = np.sqrt(q*q + u*u)
-        p_r = (1/p) * np.sqrt( (q*q_r)**2 + (u*u_r)**2 )
+        p , p_r = pol_deg(q, q_r, u, u_r)
 
         # Arrays where we're going to store the values of p and Stokes parameters and P.A
         # after we've applied corrections.
@@ -815,6 +855,7 @@ def lin_specpol(oray='ap2', hwrpafile = 'hwrpangles.txt', bin_size = None, e_min
                     stdv_dequ.append(dequ)
         except IndexError:
             dequ = eq-eu
+            stdv_dequ.append(dequ)
 
         stdv_e = np.std(stdv_dequ)
         avg_e = np.average(stdv_dequ)
@@ -829,8 +870,7 @@ def lin_specpol(oray='ap2', hwrpafile = 'hwrpangles.txt', bin_size = None, e_min
     ls_0, ls_1, ls_2, ls_3 = np.genfromtxt(hwrpafile, dtype='str', unpack = True, usecols = (0, 1, 2, 3))
 
     # Now getting the data from the files in lists that will be used by the specpol() function.
-    wl, ls_fo0, ls_fe0, ls_fo0_err, ls_fe0_err, ls_fo1, ls_fe1, ls_fo1_err, ls_fe1_err, ls_fo2, ls_fe2, ls_fo2_err, ls_fe2_err, ls_fo3, ls_fe3, ls_fo3_err, ls_fe3_err = get_data(ls_0, ls_1, ls_2, ls_3)
-
+    wl, ls_F0, ls_F0_r, ls_F1, ls_F1_r, ls_F2, ls_F2_r, ls_F3, ls_F3_r = get_data(ls_0, ls_1, ls_2, ls_3)
 
     qls=[]
     qrls=[]
@@ -843,7 +883,7 @@ def lin_specpol(oray='ap2', hwrpafile = 'hwrpangles.txt', bin_size = None, e_min
     # Each index in those lists refers to 1 set of values for all wavelength bins wl. Each set of Stokes parameters
     # is stored in lists defined above so that we can then take the average for each bin, and the standard deviation
     # which will be used as the error.
-
+    """
     for i in range(len(ls_fo0)):
         print "Set ", i+1
 
@@ -898,39 +938,7 @@ def lin_specpol(oray='ap2', hwrpafile = 'hwrpangles.txt', bin_size = None, e_min
             snr2 = (bin_fo2 + bin_fe2)/np.sqrt(bin_fo2_err**2 + bin_fe2_err**2)
             snr3 = (bin_fo3 + bin_fe3)/np.sqrt(bin_fo3_err**2 + bin_fe3_err**2)
 
-            """ Median SNR not good comparison. Gotta do it with the central wavelength.
-            snr_exp_b0=[]
-            snr_exp_b1=[]
-            snr_exp_b2=[]
-            snr_exp_b3=[]
 
-            for i in range(len(bin_wl)):
-                index = int(np.argwhere(bin_wl == min(bin_wl, key=lambda x:abs(x-bin_wl[i])))[0])
-                snr_exp_b0.append(snr_exp0[index])
-                snr_exp_b1.append(snr_exp1[index])
-                snr_exp_b2.append(snr_exp2[index])
-                snr_exp_b3.append(snr_exp3[index])
-
-            med_res0 = np.median(snr_exp_b0 - snr0)  # median of residuals between expected and obtained SNR
-            med_res1 = np.median(snr_exp_b1 - snr1)
-            med_res2 = np.median(snr_exp_b2 - snr2)
-            med_res3 = np.median(snr_exp_b3 - snr3)
-
-            print "--------- 0 ------ 22.5 ----- 45 ----- 67.5 --------"
-            print "MEDIAN THEORETICAL: ",int(np.median(snr_exp_b0)), int(np.median(snr_exp_b1)), int(np.median(snr_exp_b2)), int(np.median(snr_exp_b3))
-            print "MEDIAN CALCULATED : ",int(np.median(snr0)), int(np.median(snr1)), int(np.median(snr2)), int(np.median(snr3))
-            print "MEDIAN OF RESIDUALS (EXPECTED SNR - OBTAINED) (not residual of median values)"
-            print med_res0, med_res1, med_res2, med_res3
-
-            avg_res0 = np.average(snr_exp_b0 - snr0) # median of residuals between expected and obtained SNR
-            avg_res1 = np.average(snr_exp_b1 - snr1)
-            avg_res2 = np.average(snr_exp_b2 - snr2)
-            avg_res3 = np.average(snr_exp_b3 - snr3)
-
-            print "AVERAGE OF RESIDUALS (EXPECTED SNR - OBTAINED)"
-            print avg_res0, avg_res1, avg_res2, avg_res3
-            print "\n"
-            """
             snr_c_exp0 = snr_nbc0 * np.sqrt(bin_size/(wl[1]-wl[0]))
             snr_c_exp1 = snr_nbc1 * np.sqrt(bin_size/(wl[1]-wl[0]))
             snr_c_exp2 = snr_nbc2 * np.sqrt(bin_size/(wl[1]-wl[0]))
@@ -990,7 +998,7 @@ def lin_specpol(oray='ap2', hwrpafile = 'hwrpangles.txt', bin_size = None, e_min
                                                                              bin_fe3_err)
 
 
-        
+
         qls.append(q)
         qrls.append(qr)
         uls.append(u)
@@ -998,6 +1006,10 @@ def lin_specpol(oray='ap2', hwrpafile = 'hwrpangles.txt', bin_size = None, e_min
         delta_es.append(delta_e)
         avg_es.append(avg_e)
         stdv_es.append(stdv_e)
+        """
+
+    for i in range(len(ls_F0)):
+        specpol(wl,ls_F0[i], ls_F0_r[i],ls_F0[i], ls_F1_r[i],ls_F1[i], ls_F2_r[i],ls_F2[i], ls_F2_r[i])
 
     # Where we'll put the final values of the Stokes parameters and their errors.
     qf=np.array([])
