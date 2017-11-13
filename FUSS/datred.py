@@ -283,13 +283,11 @@ def hwrpangles(sn_name = 'CCSN', zeropol_name = 'Zero_', polstd_name='NGC2024'):
     """
 
     # We want to make sure that python reads the images in the right order, we also only need to look at the headers
-    # of the original images with name format SCIENCE_##.fits where ## is a 2 dgit number.
+    # of the original images with name format SCIENCE_##.fits where ## is a 2 or 3 digit number.
 
-    ls_filenames = []
-    for filename in os.listdir("."):
-        if 'SCIENCE' in filename and 'ms' not in filename and 'dSCIENCE' not in filename and 'cal' not in filename:
-            ls_filenames.append(filename)
-    sorted_files = sorted(ls_filenames)
+    sorted_files = sorted([filename for filename in os.listdir(".")
+                           if 'SCIENCE' in filename and 'ms' not in filename
+                           and 'dSCIENCE' not in filename and 'cal' not in filename])
 
     # We are sorting the image names in 3 list to distinguish the CCSN from the polarised std from the zero pol std.
     zeropol = []
@@ -491,101 +489,104 @@ class DataFilesLinPol(object):
                             ls_fe3_err.append(fe)
 
 """
-    def rebin(wl, f, r, bin_siz=bin_size):
-        """
-        To rebin my flux spectra
 
-        Parameters
-        ----------
-        wl : array
-            1D array containing the wavelengths to be rebinned
-        f : array
-            1D array containing the fluxes to be rebinned
-        r : array
-            1D array containing the errors on the fluxes to be rebinned
-        bin_siz : int
-            Size of the new bins in Angstrom.
 
-        Returns
-        -------
-            tuple of 1D arrays: wl, f, err all rebinned to the new bin size
-        if bin_siz is None:
-            print "No binning"
-            return wl, f, r
-        """
-        wl = np.array(wl)
-        f = np.array(f)
-        r = np.array(r)
-        small_bin_sizes = []
+def rebin(wl, f, r, bin_siz=None):
+    """
+    To rebin my flux spectra
 
-        bins_f = np.zeros(int((max(wl)-min(wl))/bin_siz)+1) # new flux bins, empty for now
-        bins_w = np.zeros(int((max(wl)-min(wl))/bin_siz)+1) # new error bins, empty for now
+    Parameters
+    ----------
+    wl : array
+        1D array containing the wavelengths to be rebinned
+    f : array
+        1D array containing the fluxes to be rebinned
+    r : array
+        1D array containing the errors on the fluxes to be rebinned
+    bin_siz : int
+        Size of the new bins in Angstrom.
 
-        weights = 1/(r**2)
+    Returns
+    -------
+        tuple of 1D arrays: wl, f, err all rebinned to the new bin size
+    if bin_siz is None:
+        print "No binning"
+        return wl, f, r
+    """
+    wl = np.array(wl)
+    f = np.array(f)
+    r = np.array(r)
+    small_bin_sizes = []
 
-        for i in range(len(wl)-1):
-            #n = int((wl[i]-min(wl))/bin_siz) # n is the number of the new bin
-            small_bin_sizes.append((wl[i+1]-wl[i])) # filling list of small bin sizes
+    bins_f = np.zeros(int((max(wl)-min(wl))/bin_siz)+1) # new flux bins, empty for now
+    bins_w = np.zeros(int((max(wl)-min(wl))/bin_siz)+1) # new error bins, empty for now
 
-        bin_centers = [(min(wl)+bin_siz/2)+bin_siz*n for n in range(len(bins_f))] # finding the new bin centers
+    weights = 1/(r**2)
 
-        bin_edges = [bin_centers[0]-bin_siz/2]+[bin1 + bin_siz/2 for bin1 in bin_centers] # finding the new bin edges
+    for i in range(len(wl)-1):
+        #n = int((wl[i]-min(wl))/bin_siz) # n is the number of the new bin
+        small_bin_sizes.append((wl[i+1]-wl[i])) # filling list of small bin sizes
 
-        ind_edge = [] # in this list I'll put the index of the array wl corresponding to the wavelength values
-                      # that are close to the bin edges.
+    bin_centers = [(min(wl)+bin_siz/2)+bin_siz*n for n in range(len(bins_f))] # finding the new bin centers
 
-        for edge in bin_edges:
-            i_wl_at_edge = min(range(len(wl[:-1])), key=lambda i: abs(edge-wl[i]))
-            #this is to find the small bin that is closest to the edge of the new bin
-            #print wl[i_wl_at_edge], small_bin_sizes[i_wl_at_edge]
-            ind_edge.append(i_wl_at_edge)
+    bin_edges = [bin_centers[0]-bin_siz/2]+[bin1 + bin_siz/2 for bin1 in bin_centers] # finding the new bin edges
 
-        for i in range(len(wl)):
-            n = int((wl[i]-min(wl))/bin_siz)
-            if i in ind_edge:
-                j = ind_edge.index(i) # finding index j of the wavelength index i I am interested in
-                edge = bin_edges[j] # the edge to compare to wl[i] will then be at bin_edges[j]
+    ind_edge = [] # in this list I'll put the index of the array wl corresponding to the wavelength values
+                  # that are close to the bin edges.
 
-                if wl[i] < edge:
-                    frac_overlap = (wl[i]+small_bin_sizes[i]/2-edge)/(small_bin_sizes[i])
-                    try:
-                        bins_f[n] += f[i]*weights[i]*(1-frac_overlap)
-                        bins_w[n] += weights[i]*(1-frac_overlap)
-                        bins_f[n+1] += f[i]*weights[i]*frac_overlap
-                        bins_w[n+1] += weights[i]*frac_overlap
+    for edge in bin_edges:
+        i_wl_at_edge = min(range(len(wl[:-1])), key=lambda i: abs(edge-wl[i]))
+        #this is to find the small bin that is closest to the edge of the new bin
+        #print wl[i_wl_at_edge], small_bin_sizes[i_wl_at_edge]
+        ind_edge.append(i_wl_at_edge)
 
-                    except IndexError:
-                        print"Index Error at ", wl[i]
-                        pass
+    for i in range(len(wl)):
+        n = int((wl[i]-min(wl))/bin_siz)
+        if i in ind_edge:
+            j = ind_edge.index(i) # finding index j of the wavelength index i I am interested in
+            edge = bin_edges[j] # the edge to compare to wl[i] will then be at bin_edges[j]
 
-                elif wl[i] > edge:
-                    frac_overlap = (wl[i]+small_bin_sizes[i]/2-edge)/(small_bin_sizes[i])
-                    try:
-                        bins_f[n] += f[i]*weights[i]*frac_overlap
-                        bins_w[n] += weights[i]*frac_overlap
-                        bins_f[n+1] += f[i]*weights[i]*(1-frac_overlap)
-                        bins_w[n+1] += weights[i]*(1-frac_overlap)
-
-                    except IndexError:
-                        print"Index Error at ", wl[i]
-                        pass
-
-            else:
+            if wl[i] < edge:
+                frac_overlap = (wl[i]+small_bin_sizes[i]/2-edge)/(small_bin_sizes[i])
                 try:
-                    bins_f[n] += f[i]*weights[i]
-                    bins_w[n] += weights[i]
+                    bins_f[n] += f[i]*weights[i]*(1-frac_overlap)
+                    bins_w[n] += weights[i]*(1-frac_overlap)
+                    bins_f[n+1] += f[i]*weights[i]*frac_overlap
+                    bins_w[n+1] += weights[i]*frac_overlap
+
                 except IndexError:
                     print"Index Error at ", wl[i]
                     pass
 
-        for i in range(len(bin_centers)):
-            if bins_w[i] == 0.0:
-                print bin_centers[i], bins_w[i]
+            elif wl[i] > edge:
+                frac_overlap = (wl[i]+small_bin_sizes[i]/2-edge)/(small_bin_sizes[i])
+                try:
+                    bins_f[n] += f[i]*weights[i]*frac_overlap
+                    bins_w[n] += weights[i]*frac_overlap
+                    bins_f[n+1] += f[i]*weights[i]*(1-frac_overlap)
+                    bins_w[n+1] += weights[i]*(1-frac_overlap)
 
-        bins_f[:-1] /= bins_w[:-1]  # normalise weighted values by sum of weights to get weighted average
-        bins_err = np.sqrt(1/bins_w[:-1])
+                except IndexError:
+                    print"Index Error at ", wl[i]
+                    pass
 
-        return bin_centers[:-1], bins_f[:-1], bins_err
+        else:
+            try:
+                bins_f[n] += f[i]*weights[i]
+                bins_w[n] += weights[i]
+            except IndexError:
+                print"Index Error at ", wl[i]
+                pass
+
+    for i in range(len(bin_centers)):
+        if bins_w[i] == 0.0:
+            print bin_centers[i], bins_w[i]
+
+    bins_f[:-1] /= bins_w[:-1]  # normalise weighted values by sum of weights to get weighted average
+    bins_err = np.sqrt(1/bins_w[:-1])
+
+    return bin_centers[:-1], bins_f[:-1], bins_err
+
 
 class OERay(object):
     """
@@ -607,38 +608,42 @@ class OERay(object):
 
         return self.F, self.F_r
 
-# keeping this as separate funciton because makign instance within the function means they can be forgotten
-# when come out of it and not take up too much memory
-def flux_diff_from_file(filename, ordinary_ray = oray, extra_ray = eray, bin_size=None):
-    if ordinary_ray in filename:
-        if 'err' not in filename:
-            wl, fo = np.loadtxt(filename, unpack=True, usecols=(0,1))
-        else:
-            wl, fo_r = np.loadtxt(filename, unpack=True, usecols=(0,1))
 
-    if extra_ray in filename:
-        if 'err' not in filename:
-            wl, fe = np.loadtxt(filename, unpack=True, usecols=(0,1))
-        else:
-            wl, fe_r = np.loadtxt(filename, unpack=True, usecols=(0,1))
+def flux_diff_from_file(files, ordinary_ray, extra_ray, bin_size=None):
+    # keeping this as separate funciton because makign instance within the function means they can be forgotten
+    # when come out of it and not take up too much memory
+    print files
+    for filename in files:
+        print filename
+        if ordinary_ray in filename:
+            print "oray"
+            if 'err' not in filename:
+                wl, fo = np.loadtxt(filename, unpack=True, usecols=(0,1))
+            else:
+                wl, fo_r = np.loadtxt(filename, unpack=True, usecols=(0,1))
+
+        if extra_ray in filename:
+            print "eray"
+            if 'err' not in filename:
+                wl, fe = np.loadtxt(filename, unpack=True, usecols=(0,1))
+            else:
+                wl, fe_r = np.loadtxt(filename, unpack=True, usecols=(0,1))
 
     # BINNING
     if bin_size is None:
         fo_bin, fo_bin_r, fe_bin, fe_bin_r = fo, fo_r, fe, fe_r
 
     else:
-        wl, fo_bin, fo_bin_r, rebin(wl, fo, fo_r, bin_siz=bin_size)
-        wl, fe_bin, fe_bin_r, rebin(wl, fe, fe_r, bin_siz=bin_size)
-
+        wl, fo_bin, fo_bin_r = rebin(wl, fo, fo_r, bin_siz=bin_size)
+        wl, fe_bin, fe_bin_r = rebin(wl, fe, fe_r, bin_siz=bin_size)
 
     data_object = OERay(wl, fo_bin, fo_bin_r, fe_bin, fe_bin_r)
     F, F_r = data_object.norm_flux_diff()
 
-    return wl, F , F_r
+    return wl, F, F_r
 
 
-
-def pol_deg(q, q_r = None, u, u_r = None):
+def pol_deg(q, u, q_r=None, u_r=None):
     p = np.sqrt(q*q + u*u)
     if q_r or u_r is None:
         return p
@@ -718,11 +723,8 @@ def lin_specpol(oray='ap2', hwrpafile = 'hwrpangles.txt',
 
         # Need to do this because python doesn't read files in alphabetical order but in order they
         # are written on the disc
-        list_file=[]
-        for name in os.listdir('.'):
-            list_file.append(name)
-        sorted_files = sorted(list_file)
-
+        sorted_files = sorted([filename for filename in os.listdir(".")
+                           if 'dSCIENCE' in filename and 'fits' not in filename and 'c_' not in filename])
         ls_F0 = []
         ls_F0_r = []
 
@@ -751,35 +753,43 @@ def lin_specpol(oray='ap2', hwrpafile = 'hwrpangles.txt',
             except AttributeError:
                 print "Couldn't find a number in this filename - passing"
                 pass
+            # The following compares the number in the filename to the number in ls_0 to see if the image
+            # correspond to a 0 deg HWRP angle set up.
 
-            # This condition is related to the naming convention I have adopted.
-            if 'c_' not in filename:
-                # The following compares the number in the filename to the number in ls_0 to see if the image
-                # correspond to a 0 deg HWRP angle set up. The naming convention is crucial for this line to work
-                # as it keeps the number in the filename in the location: filename[-10:-8] or filename[-14:-12] for
-                # flux and flux_error files, respectively.
+            files0 = []
+            files1 = []
+            files2 = []
+            files3 = []
 
-                # Francesco: Use regex to look for \w*?_\d{2}*? check the regex codes
+            if int(nbr_in_file_name) in ls_0:
+                files0.append(filename)
 
-                if nbr_in_file_name in ls_0:
-                    wl0, F0, F0_r = flux_diff_from_file(filename, ordinary_ray = oray, extra_ray = eray)
-                    ls_F0.append(F0)
-                    ls_F0_r.append(F0_r)
-                # Same thing as the first loop but for 22.5 HWRP
-                if nbr_in_file_name in ls_1:
-                    wl1, F1, F1_r = flux_diff_from_file(filename, ordinary_ray = oray, extra_ray = eray)
-                    ls_F1.append(F0)
-                    ls_F1_r.append(F0_r)
-                # Same thing as the first loop but for 45 HWRP
-                if nbr_in_file_name in ls_2:
-                    wl2, F2, F2_r = flux_diff_from_file(filename, ordinary_ray = oray, extra_ray = eray)
-                    ls_F2.append(F0)
-                    ls_F2_r.append(F0_r)
-                # Same thing as the first loop but for 67.5 HWRP
-                if nbr_in_file_name in ls_3:
-                    wl3, F3, F3_r = flux_diff_from_file(filename, ordinary_ray = oray, extra_ray = eray)
-                    ls_F3.append(F0)
-                    ls_F3_r.append(F0_r)
+            # Same thing as the first loop but for 22.5 HWRP
+            elif int(nbr_in_file_name) in ls_1:
+                files1.append(filename)
+
+            # Same thing as the first loop but for 45 HWRP
+            elif int(nbr_in_file_name) in ls_2:
+                files2.append(filename)
+
+            # Same thing as the first loop but for 67.5 HWRP
+            elif int(nbr_in_file_name) in ls_3:
+                files3.append(filename)
+
+
+        wl0, F0, F0_r = flux_diff_from_file(files0, ordinary_ray = oray, extra_ray = eray)
+        ls_F0.append(F0)
+        ls_F0_r.append(F0_r)
+        wl1, F1, F1_r = flux_diff_from_file(files1, ordinary_ray = oray, extra_ray = eray)
+        ls_F1.append(F1)
+        ls_F1_r.append(F1_r)
+        wl2, F2, F2_r = flux_diff_from_file(files2, ordinary_ray = oray, extra_ray = eray)
+        ls_F2.append(F2)
+        ls_F2_r.append(F2_r)
+        wl3, F3, F3_r = flux_diff_from_file(files3, ordinary_ray = oray, extra_ray = eray)
+        ls_F3.append(F3)
+        ls_F3_r.append(F3_r)
+
 
         assert len(wl0) == len(wl1) == len(wl2) == len(wl3), "Wavelength bins not homogenous. This will be an issue."
 
@@ -811,7 +821,7 @@ def lin_specpol(oray='ap2', hwrpafile = 'hwrpangles.txt',
         u = 0.5*(F1-F3)
         q_r = 0.5*np.sqrt(F0_r**2 + F2_r**2)
         u_r = 0.5*np.sqrt(F1_r**2 + F3_r**2)
-        p , p_r = pol_deg(q, q_r, u, u_r)
+        p , p_r = pol_deg(q, u, q_r, u_r)
 
         # Arrays where we're going to store the values of p and Stokes parameters and P.A
         # after we've applied corrections.
