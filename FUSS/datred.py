@@ -1008,8 +1008,19 @@ def lin_specpol(oray='ap2', hwrpafile = 'hwrpangles.txt',
         stdv_es.append(stdv_e)
         """
 
+    #TODO: Test the fucker
     for i in range(len(ls_F0)):
-        specpol(wl,ls_F0[i], ls_F0_r[i],ls_F0[i], ls_F1_r[i],ls_F1[i], ls_F2_r[i],ls_F2[i], ls_F2_r[i])
+        p, pr, q, qr, u, ur, theta, thetar, delta_e, avg_e, stdv_e = specpol(wl,ls_F0[i], ls_F0_r[i],ls_F0[i],
+                                                                                 ls_F1_r[i],ls_F1[i], ls_F2_r[i],
+                                                                                 ls_F2[i], ls_F2_r[i])
+        qls.append(q)
+        qrls.append(qr)
+        uls.append(u)
+        urls.append(ur)
+        delta_es.append(delta_e)
+        avg_es.append(avg_e)
+        stdv_es.append(stdv_e)
+
 
     # Where we'll put the final values of the Stokes parameters and their errors.
     qf=np.array([])
@@ -1038,9 +1049,6 @@ def lin_specpol(oray='ap2', hwrpafile = 'hwrpangles.txt',
         qrf= np.append(qrf, np.sqrt(1/np.sum(qr_to_sum)))
         urf= np.append(urf, np.sqrt(1/np.sum(ur_to_sum)))
 
-        # My final Stokes parameters, doing a weighted average. The weights are 1/stdv**2
-        #qf= np.append(qf, np.average(q_to_avg, weights=1/(qr_to_sum**2)))
-        #uf= np.append(uf, np.average(u_to_avg, weights=1/(ur_to_sum**2)))
         qf= np.append(qf, np.average(q_to_avg, weights=qr_to_sum))
         uf= np.append(uf, np.average(u_to_avg, weights=ur_to_sum))
 
