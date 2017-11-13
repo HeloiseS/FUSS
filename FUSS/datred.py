@@ -379,116 +379,6 @@ def hwrpangles(sn_name = 'CCSN', zeropol_name = 'Zero_', polstd_name='NGC2024'):
 
 
 # ####################### Creating a class #################
-"""
-class DataFilesLinPol(object):
-    def __init__(self, hwrpangle_file = 'hwrpangles.txt'):
-
-        ls_0, ls_1, ls_2, ls3 = np.loadtxt(hwrpangle_file, unpack = True, usecols=(0,1,2,3))
-
-        sorted_files = sorted([name for name in os.listdir('.'])
-
-        files0 = None
-        files22 = None
-        files45 = None
-        files67 = None
-
-        valid1 = re.compile('SCI')
-        valid2 = re.compile('STD')
-        find_nbr = re.compile('\d{1,3}')  # This is what we'll look for in filename: a number 1-3 digits long
-
-        for filename in sorted_files:
-            nbr_in_file_name = "PasLa"
-            # finding the number in the filename. Searched through filename for a 1-3 digit number and returns it.
-            try:
-                if valid1.search(filename) or  valid2.search(filename):
-                    nbr_in_file_name = find_nbr.search(filename[1:]).group()
-                    # removing first character as files start with a 1 usually and that messes things up
-            except AttributeError:
-                print "Couldn't find a number in this filename - passing"
-                pass
-
-            # This condition is related to the naming convention I have adopted.
-            if 'c_' not in filename:
-                # The following compares the number in the filename to the number in ls_0 to see if the image
-                # correspond to a 0 deg HWRP angle set up. The naming convention is crucial for this line to work
-                # as it keeps the number in the filename in the location: filename[-10:-8] or filename[-14:-12] for
-                # flux and flux_error files, respectively.
-
-                # Francesco: Use regex to look for \w*?_\d{2}*? check the regex codes
-
-                if nbr_in_file_name in ls_0:
-                    # Now we put the filename in the right list, oray or eray and flux or error on flux.
-                    if oray in filename:
-                        if 'err' not in filename:
-                            wl, fo = np.loadtxt(filename, unpack=True, usecols=(0,1))
-                            ls_fo0.append(fo)
-                        else:
-                            wl, fo = np.loadtxt(filename, unpack=True, usecols=(0,1))
-                            ls_fo0_err.append(fo)
-
-                    if eray in filename:
-                        if 'err' not in filename:
-                            wl, fe = np.loadtxt(filename, unpack=True, usecols=(0,1))
-                            ls_fe0.append(fe)
-                        else:
-                            wl, fe = np.loadtxt(filename, unpack=True, usecols=(0,1))
-                            ls_fe0_err.append(fe)
-
-                # Same thing as the first loop but for 22.5 HWRP
-                if nbr_in_file_name in ls_1:
-                    if oray in filename:
-                        if 'err' not in filename:
-                            wl, fo = np.loadtxt(filename, unpack=True, usecols=(0,1))
-                            ls_fo1.append(fo)
-                        else:
-                            wl, fo = np.loadtxt(filename, unpack=True, usecols=(0,1))
-                            ls_fo1_err.append(fo)
-
-                    if eray in filename:
-                        if 'err' not in filename:
-                            wl, fe = np.loadtxt(filename, unpack=True, usecols=(0,1))
-                            ls_fe1.append(fe)
-                        else:
-                            wl, fe = np.loadtxt(filename, unpack=True, usecols=(0,1))
-                            ls_fe1_err.append(fe)
-
-                # Same thing as the first loop but for 45 HWRP
-                if nbr_in_file_name in ls_2:
-                    if oray in filename:
-                        if 'err' not in filename:
-                            wl, fo = np.loadtxt(filename, unpack=True, usecols=(0,1))
-                            ls_fo2.append(fo)
-                        else:
-                            wl, fo = np.loadtxt(filename, unpack=True, usecols=(0,1))
-                            ls_fo2_err.append(fo)
-
-                    if eray in filename:
-                        if 'err' not in filename:
-                            wl, fe = np.loadtxt(filename, unpack=True, usecols=(0,1))
-                            ls_fe2.append(fe)
-                        else:
-                            wl, fe = np.loadtxt(filename, unpack=True, usecols=(0,1))
-                            ls_fe2_err.append(fe)
-
-                # Same thing as the first loop but for 67.5 HWRP
-                if nbr_in_file_name in ls_3:
-                    if oray in filename:
-                        if 'err' not in filename:
-                            wl, fo = np.loadtxt(filename, unpack=True, usecols=(0,1))
-                            ls_fo3.append(fo)
-                        else:
-                            wl, fo = np.loadtxt(filename, unpack=True, usecols=(0,1))
-                            ls_fo3_err.append(fo)
-
-                    if eray in filename:
-                        if 'err' not in filename:
-                            wl, fe = np.loadtxt(filename, unpack=True, usecols=(0,1))
-                            ls_fe3.append(fe)
-                        elif 'err' in filename:
-                            wl, fe = np.loadtxt(filename, unpack=True, usecols=(0,1))
-                            ls_fe3_err.append(fe)
-
-"""
 
 
 def rebin(wl, f, r, bin_siz=30):
@@ -612,7 +502,7 @@ class OERay(object):
         return self.F, self.F_r
 
 
-def flux_diff_from_file(files, ordinary_ray, extra_ray, bin_size=None):
+def flux_diff_from_file(files, ordinary_ray, extra_ray, bin_size, check_bin = False, snrplot=False):
     # keeping this as separate funciton because makign instance within the function means they can be forgotten
     # when come out of it and not take up too much memory
 
@@ -640,10 +530,50 @@ def flux_diff_from_file(files, ordinary_ray, extra_ray, bin_size=None):
         #TODO: test the binning with plots like done in previous version
         wl_bin, fe_bin, fe_bin_r = rebin(wl, fe, fe_r, bin_siz=bin_size)
 
+        if check_bin is True:
+            check_binning(wl, fo, fe, fo_r, fe_r, wl_bin, fo_bin, fe_bin, fo_bin_r, fe_bin_r, bin_size, snrplot=snrplot)
+
     data_object = OERay(wl_bin, fo_bin, fo_bin_r, fe_bin, fe_bin_r)
     F, F_r = data_object.norm_flux_diff()
 
     return wl_bin, F, F_r
+
+
+def check_binning(wl, fo, fe, fo_r, fe_r, bin_wl, bin_fo, bin_fe, bin_fo_r, bin_fe_r, bin_size, snrplot = False):
+    snr_not_binned =  np.array((fo + fe)/np.sqrt(fo_r**2 + fe_r**2))
+    snr_expected = snr_not_binned*np.sqrt(bin_size/(wl[1]-wl[0]))
+    ind_not_binned_central_wl = int(np.argwhere(wl == min(wl, key=lambda x:abs(x-6204)))[0])
+    snr_not_binned_central_wl = snr_not_binned[ind_not_binned_central_wl]
+    snr_central_expected = snr_not_binned_central_wl * np.sqrt(bin_size/(wl[1]-wl[0]))
+
+    snr_binned =  np.array((bin_fo + bin_fe)/np.sqrt(bin_fo_r**2 + bin_fe_r**2))
+    ind_central_wl = int(np.argwhere(bin_wl == min(bin_wl, key=lambda x:abs(x-6204)))[0])
+    snr_central_wl = (bin_fo[ind_central_wl] + bin_fe[ind_central_wl])/\
+                    np.sqrt(bin_fo_r[ind_central_wl]**2 + bin_fe_r[ind_central_wl]**2)
+
+    print "\n======== BEFORE BINNING ======"
+    print "MEDIAN SNR "
+    print np.median(snr_not_binned)
+
+    print "CENTRAL SNR at (", wl[ind_not_binned_central_wl], " A)"
+    print snr_not_binned_central_wl
+
+    print "======== AFTER BINNING ======"
+
+    print "MEDIAN SNR / EXPECTED "
+    print np.median(snr_binned), np.median(snr_expected)
+
+    print "CENTRAL SNR / EXPECTED (at ", wl[ind_not_binned_central_wl], " A)"
+    print snr_central_wl , snr_central_expected
+    print "\n"
+
+    if snrplot is True:
+        plt.plot(wl, snr_expected, marker='o',label='Expected')
+        plt.plot(bin_wl, snr_binned, marker='x', label='Calculated after binning')
+        plt.legend()
+        plt.show()
+
+    return
 
 
 def pol_deg(q, u, q_r=None, u_r=None):
@@ -660,7 +590,7 @@ def pol_deg(q, u, q_r=None, u_r=None):
 
 def lin_specpol(oray='ap2', hwrpafile = 'hwrpangles.txt',
                 bin_size = None, e_min_wl = 3775,
-                bayesian_pcorr=False, p0_step = 0.01):
+                bayesian_pcorr=False, p0_step = 0.01, snrplot=False):
     """
     Calculates the Stokes parameters and P.A of a data set and writes them out in a text file.
 
@@ -791,8 +721,11 @@ def lin_specpol(oray='ap2', hwrpafile = 'hwrpangles.txt',
             files_22_deg_subset = files_22_deg[0+step:4+step]
             files_45_deg_subset = files_45_deg[0+step:4+step]
             files_67_deg_subset = files_67_deg[0+step:4+step]
+            if i == 0:
+                check = True
+            wl0, F0, F0_r = flux_diff_from_file(files_0_deg_subset, oray, eray, bin_size,
+                                              check_bin = check, snrplot=snrplot)
 
-            wl0, F0, F0_r = flux_diff_from_file(files_0_deg_subset, oray, eray, bin_size)
             ls_F0.append(F0)
             ls_F0_r.append(F0_r)
             wl1, F1, F1_r = flux_diff_from_file(files_22_deg_subset, oray, eray, bin_size)
@@ -904,136 +837,7 @@ def lin_specpol(oray='ap2', hwrpafile = 'hwrpangles.txt',
     delta_es=[]
     avg_es=[]
     stdv_es=[]
-    
-    # Each index in those lists refers to 1 set of values for all wavelength bins wl. Each set of Stokes parameters
-    # is stored in lists defined above so that we can then take the average for each bin, and the standard deviation
-    # which will be used as the error.
-    """
-    for i in range(len(ls_fo0)):
-        print "Set ", i+1
 
-        if bin_size is not None:
-            snr_nb0 =  np.array((ls_fo0[i] + ls_fe0[i])/np.sqrt(ls_fo0_err[i]**2 + ls_fe0_err[i]**2)) # SNR not binned
-            snr_nb1 =  np.array((ls_fo1[i] + ls_fe1[i])/np.sqrt(ls_fo1_err[i]**2 + ls_fe1_err[i]**2))
-            snr_nb2 =  np.array((ls_fo2[i] + ls_fe2[i])/np.sqrt(ls_fo2_err[i]**2 + ls_fe2_err[i]**2))
-            snr_nb3 =  np.array((ls_fo3[i] + ls_fe3[i])/np.sqrt(ls_fo3_err[i]**2 + ls_fe3_err[i]**2))
-            
-            print "MEDIAN SNR before binning: "
-            print np.median(snr_nb0), np.median(snr_nb1), np.median(snr_nb2), np.median(snr_nb3)
-
-            #print (wl[1]-wl[0])
-            snr_exp0 = snr_nb0*np.sqrt(bin_size/(wl[1]-wl[0])) # expected snr
-            snr_exp1 = snr_nb1*np.sqrt(bin_size/(wl[1]-wl[0]))
-            snr_exp2 = snr_nb2*np.sqrt(bin_size/(wl[1]-wl[0]))
-            snr_exp3 = snr_nb3*np.sqrt(bin_size/(wl[1]-wl[0]))
-
-            ind_central_wl = int(np.argwhere(wl == min(wl, key=lambda x:abs(x-6204)))[0])
-            snr_nbc0 = snr_nb0[ind_central_wl]
-            snr_nbc1 = snr_nb1[ind_central_wl]
-            snr_nbc2 = snr_nb2[ind_central_wl]
-            snr_nbc3 = snr_nb3[ind_central_wl]
-            print "SNR before binning at ", wl[ind_central_wl]
-            print snr_nbc0 , snr_nbc1, snr_nbc2, snr_nbc3
-            
-            print "Rebinning to ",str(bin_size)," Angstrom"
-            bin_wl, bin_fo0, bin_fo0_err = rebin(wl, ls_fo0[i], ls_fo0_err[i])
-            bin_wl, bin_fe0, bin_fe0_err = rebin(wl, ls_fe0[i], ls_fe0_err[i])
-            bin_wl, bin_fo1, bin_fo1_err = rebin(wl, ls_fo1[i], ls_fo1_err[i])
-            bin_wl, bin_fe1, bin_fe1_err = rebin(wl, ls_fe1[i], ls_fe1_err[i])
-            bin_wl, bin_fo2, bin_fo2_err = rebin(wl, ls_fo2[i], ls_fo2_err[i])
-            bin_wl, bin_fe2, bin_fe2_err = rebin(wl, ls_fe2[i], ls_fe2_err[i])
-            bin_wl, bin_fo3, bin_fo3_err = rebin(wl, ls_fo3[i], ls_fo3_err[i])
-            bin_wl, bin_fe3, bin_fe3_err = rebin(wl, ls_fe3[i], ls_fe3_err[i])
-            
-            ind_central_wl = int(np.argwhere(bin_wl == min(bin_wl, key=lambda x:abs(x-6204)))[0])
-            snr_c0 = (bin_fo0[ind_central_wl] + bin_fe0[ind_central_wl])/np.sqrt(bin_fo0_err[ind_central_wl]**2 + bin_fe0_err[ind_central_wl]**2)
-            snr_c1 = (bin_fo1[ind_central_wl] + bin_fe1[ind_central_wl])/np.sqrt(bin_fo1_err[ind_central_wl]**2 + bin_fe1_err[ind_central_wl]**2)
-            snr_c2 = (bin_fo2[ind_central_wl] + bin_fe2[ind_central_wl])/np.sqrt(bin_fo2_err[ind_central_wl]**2 + bin_fe2_err[ind_central_wl]**2)
-            snr_c3 = (bin_fo3[ind_central_wl] + bin_fe3[ind_central_wl])/np.sqrt(bin_fo3_err[ind_central_wl]**2 + bin_fe3_err[ind_central_wl]**2)
-
-
-            #print "noise 0:", np.sqrt(bin_fo0_err[ind_central_wl]**2 + bin_fe0_err[ind_central_wl]**2), \
-            #      "noise 22.5:", np.sqrt(bin_fo1_err[ind_central_wl]**2 + bin_fe1_err[ind_central_wl]**2), \
-            #      "noise 45:", np.sqrt(bin_fo2_err[ind_central_wl]**2 + bin_fe2_err[ind_central_wl]**2), \
-            #      "noise 67.5:", np.sqrt(bin_fo3_err[ind_central_wl]**2 + bin_fe3_err[ind_central_wl]**2)
-            print "\n"
-
-            snr0 = (bin_fo0 + bin_fe0)/np.sqrt(bin_fo0_err**2 + bin_fe0_err**2)
-            snr1 = (bin_fo1 + bin_fe1)/np.sqrt(bin_fo1_err**2 + bin_fe1_err**2)
-            snr2 = (bin_fo2 + bin_fe2)/np.sqrt(bin_fo2_err**2 + bin_fe2_err**2)
-            snr3 = (bin_fo3 + bin_fe3)/np.sqrt(bin_fo3_err**2 + bin_fe3_err**2)
-
-
-            snr_c_exp0 = snr_nbc0 * np.sqrt(bin_size/(wl[1]-wl[0]))
-            snr_c_exp1 = snr_nbc1 * np.sqrt(bin_size/(wl[1]-wl[0]))
-            snr_c_exp2 = snr_nbc2 * np.sqrt(bin_size/(wl[1]-wl[0]))
-            snr_c_exp3 = snr_nbc3 * np.sqrt(bin_size/(wl[1]-wl[0]))
-
-            print "--------- 0 ------ 22.5 ----- 45 ----- 67.5 -------- (CNTR WL ", int(bin_wl[ind_central_wl]),")"
-            print "CNTR WL THEORETICAL: ",int(snr_c_exp0), int(snr_c_exp1), int(snr_c_exp2), int(snr_c_exp3)
-            print "CNTR WL CALCULATED:  ",int(snr_c0), int(snr_c1), int(snr_c2), int(snr_c3)
-            print "CNTR WL RESIDUALS (EXPECTED SNR - OBTAINED)"
-            print snr_c_exp0 - snr_c0, snr_c_exp1 - snr_c1, snr_c_exp2 - snr_c2, snr_c_exp3 - snr_c3
-            print "\n"
-
-
-            plt.scatter(wl, snr_exp0, c='k', marker='.', label="expected SN 0 deg")
-            #plt.scatter(wl, snr_exp1, c='m', marker='.')
-            #plt.scatter(wl, snr_exp2, c='g', marker='.')
-            #plt.scatter(wl, snr_exp3, c='r', marker='.')
-            plt.plot(bin_wl, snr0, c='r', marker='+', ls='--', label="calculated", alpha=0.8)
-            plt.legend()
-            plt.show()
-
-            plt.scatter(wl, ls_fo0[i], alpha=1, marker='.')
-            plt.scatter(bin_wl, bin_fo0, label="F/err 0 deg", marker='.', alpha=0.5)
-            plt.show()
-
-            #snr0 = np.median((bin_fo0 + bin_fe0)/np.sqrt(bin_fo0_err**2 + bin_fe0_err**2))
-            #snr1 = np.median((bin_fo1 + bin_fe1)/np.sqrt(bin_fo1_err**2 + bin_fe1_err**2))
-            #snr2 = np.median((bin_fo2 + bin_fe2)/np.sqrt(bin_fo2_err**2 + bin_fe2_err**2))
-            #snr3 = np.median((bin_fo3 + bin_fe3)/np.sqrt(bin_fo3_err**2 + bin_fe3_err**2))
-
-            #print "Set ", i+1, " median SNR  ", bin_wl[0], bin_wl[1]
-            #print "SNR 0:", int(snr0), "SNR 22.5:", int(snr1), "SNR 45:", int(snr2), "SNR 67.5:", int(snr3)
-            #print "\n"
-            #print "noise 0:", np.median(np.sqrt(bin_fo0_err**2 + bin_fe0_err**2)), \
-            #      "noise 22.5:", np.median(np.sqrt(bin_fo1_err**2 + bin_fe1_err**2)), \
-            #      "noise 45:", np.median(np.sqrt(bin_fo2_err**2 + bin_fe2_err**2)), \
-            #      "noise 67.5:", np.median(np.sqrt(bin_fo3_err**2 + bin_fe3_err**2))
-
-            
-            
-        elif bin_size is None:
-            print "Not Rebinning"
-            bin_wl, bin_fo0, bin_fo0_err = wl, ls_fo0[i], ls_fo0_err[i]
-            bin_wl, bin_fe0, bin_fe0_err = wl, ls_fe0[i], ls_fe0_err[i]
-            bin_wl, bin_fo1, bin_fo1_err = wl, ls_fo1[i], ls_fo1_err[i]
-            bin_wl, bin_fe1, bin_fe1_err = wl, ls_fe1[i], ls_fe1_err[i]
-            bin_wl, bin_fo2, bin_fo2_err = wl, ls_fo2[i], ls_fo2_err[i]
-            bin_wl, bin_fe2, bin_fe2_err = wl, ls_fe2[i], ls_fe2_err[i]
-            bin_wl, bin_fo3, bin_fo3_err = wl, ls_fo3[i], ls_fo3_err[i]
-            bin_wl, bin_fe3, bin_fe3_err = wl, ls_fe3[i], ls_fe3_err[i]
-
-        p, pr, q, qr, u, ur, theta, thetar, delta_e, avg_e, stdv_e = specpol(bin_wl, bin_fo0, bin_fe0, bin_fo0_err,
-                                                                             bin_fe0_err, bin_fo1, bin_fe1,
-                                                                             bin_fo1_err, bin_fe1_err, bin_fo2,
-                                                                             bin_fe2, bin_fo2_err, bin_fe2_err,
-                                                                             bin_fo3, bin_fe3, bin_fo3_err,
-                                                                             bin_fe3_err)
-
-
-
-        qls.append(q)
-        qrls.append(qr)
-        uls.append(u)
-        urls.append(ur)
-        delta_es.append(delta_e)
-        avg_es.append(avg_e)
-        stdv_es.append(stdv_e)
-        """
-
-    #TODO: Test the fucker
     for i in range(len(ls_F0)):
         p, pr, q, qr, u, ur, theta, thetar, delta_e, avg_e, stdv_e = specpol(wl,ls_F0[i], ls_F0_r[i],ls_F1[i],
                                                                                  ls_F1_r[i],ls_F2[i], ls_F2_r[i],
