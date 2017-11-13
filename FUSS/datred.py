@@ -491,7 +491,7 @@ class DataFilesLinPol(object):
 """
 
 
-def rebin(wl, f, r, bin_siz=None):
+def rebin(wl, f, r, bin_siz=30):
     """
     To rebin my flux spectra
 
@@ -520,6 +520,7 @@ def rebin(wl, f, r, bin_siz=None):
 
     bins_f = np.zeros(int((max(wl)-min(wl))/bin_siz)+1) # new flux bins, empty for now
     bins_w = np.zeros(int((max(wl)-min(wl))/bin_siz)+1) # new error bins, empty for now
+
 
     weights = 1/(r**2)
 
@@ -581,10 +582,13 @@ def rebin(wl, f, r, bin_siz=None):
     for i in range(len(bin_centers)):
         if bins_w[i] == 0.0:
             print bin_centers[i], bins_w[i]
+            print "CAREFUL! BIN WLGTH == 0!"
 
     bins_f[:-1] /= bins_w[:-1]  # normalise weighted values by sum of weights to get weighted average
+
     bins_err = np.sqrt(1/bins_w[:-1])
 
+    #print len(bin_centers[:-1]), len(bins_f[:-1]), len(bins_err)
     return bin_centers[:-1], bins_f[:-1], bins_err
 
 
@@ -594,17 +598,16 @@ class OERay(object):
     """
     def __init__(self, wl, orayflux, orayflux_r, erayflux, erayflux_r):
         self.wl = wl
-        self.o = orayflux
-        self.o_r = orayflux_r
-        self.e = erayflux
-        self.e_r = erayflux_r
+        self.fo = orayflux
+        self.fo_r = orayflux_r
+        self.fe = erayflux
+        self.fe_r = erayflux_r
         self.F = None
         self.F_r = np.array([])
 
     def norm_flux_diff(self):
-        self.F = (self.fo - self.e_r) / (self.fo + self.fe)
-        self.F_r = m.fabs(self.F) * np.sqrt( ( (self.fo_r**2) + (self.fe_r**2) ) *
-                                             ( ( 1/(self.fo-self.fe)**2 )+ (1/(self.fo+self.fe)**2 ) ) )
+        self.F = (self.fo - self.fe) / (self.fo + self.fe)
+        self.F_r = abs(self.F) * np.sqrt( ( (self.fo_r**2) + (self.fe_r**2) ) * ( ( 1/(self.fo-self.fe)**2 )+ (1/(self.fo+self.fe)**2 ) ) )
 
         return self.F, self.F_r
 
@@ -612,18 +615,15 @@ class OERay(object):
 def flux_diff_from_file(files, ordinary_ray, extra_ray, bin_size=None):
     # keeping this as separate funciton because makign instance within the function means they can be forgotten
     # when come out of it and not take up too much memory
-    print files
+
     for filename in files:
-        print filename
         if ordinary_ray in filename:
-            print "oray"
             if 'err' not in filename:
                 wl, fo = np.loadtxt(filename, unpack=True, usecols=(0,1))
             else:
                 wl, fo_r = np.loadtxt(filename, unpack=True, usecols=(0,1))
 
         if extra_ray in filename:
-            print "eray"
             if 'err' not in filename:
                 wl, fe = np.loadtxt(filename, unpack=True, usecols=(0,1))
             else:
@@ -631,24 +631,28 @@ def flux_diff_from_file(files, ordinary_ray, extra_ray, bin_size=None):
 
     # BINNING
     if bin_size is None:
-        fo_bin, fo_bin_r, fe_bin, fe_bin_r = fo, fo_r, fe, fe_r
+       wl_bin, fo_bin, fo_bin_r, fe_bin, fe_bin_r = wl, fo, fo_r, fe, fe_r
 
     else:
-        wl, fo_bin, fo_bin_r = rebin(wl, fo, fo_r, bin_siz=bin_size)
-        wl, fe_bin, fe_bin_r = rebin(wl, fe, fe_r, bin_siz=bin_size)
+        print "Binning to ", bin_size, "Angstrom"
+        #print "Binning oray"
+        wl_bin, fo_bin, fo_bin_r = rebin(wl, fo, fo_r, bin_siz=bin_size)
+        #TODO: test the binning with plots like done in previous version
+        wl_bin, fe_bin, fe_bin_r = rebin(wl, fe, fe_r, bin_siz=bin_size)
 
-    data_object = OERay(wl, fo_bin, fo_bin_r, fe_bin, fe_bin_r)
+    data_object = OERay(wl_bin, fo_bin, fo_bin_r, fe_bin, fe_bin_r)
     F, F_r = data_object.norm_flux_diff()
 
-    return wl, F, F_r
+    return wl_bin, F, F_r
 
 
 def pol_deg(q, u, q_r=None, u_r=None):
     p = np.sqrt(q*q + u*u)
-    if q_r or u_r is None:
+    if q_r is not None and u_r is not None:
+        p_r = (1/p) * np.sqrt( (q*q_r)**2 + (u*u_r)**2 )
+        return p, p_r
+    else:
         return p
-    p_r = (1/p) * np.sqrt( (q*q_r)**2 + (u*u_r)**2 )
-    return p, p_r
 
 
 # ################# SPECPOL. IT'S BIG WITH NESTED FUNCTIONS - MAYBE BAD CODE, BUT IT WORKS ####################### #
@@ -742,6 +746,10 @@ def lin_specpol(oray='ap2', hwrpafile = 'hwrpangles.txt',
         valid2 = re.compile('STD')
         find_nbr = re.compile('\d{1,3}')  # This is what we'll look for in filename: a number 1-3 digits long
                                                # The first part searches for the
+        files_0_deg = []
+        files_22_deg = []
+        files_45_deg = []
+        files_67_deg = []
 
         for filename in sorted_files:
             nbr_in_file_name = "PasLa"
@@ -756,40 +764,46 @@ def lin_specpol(oray='ap2', hwrpafile = 'hwrpangles.txt',
             # The following compares the number in the filename to the number in ls_0 to see if the image
             # correspond to a 0 deg HWRP angle set up.
 
-            files0 = []
-            files1 = []
-            files2 = []
-            files3 = []
-
-            if int(nbr_in_file_name) in ls_0:
-                files0.append(filename)
+            if str(nbr_in_file_name) in ls_0:
+                files_0_deg.append(filename)
 
             # Same thing as the first loop but for 22.5 HWRP
-            elif int(nbr_in_file_name) in ls_1:
-                files1.append(filename)
+            elif str(nbr_in_file_name) in ls_1:
+                files_22_deg.append(filename)
 
             # Same thing as the first loop but for 45 HWRP
-            elif int(nbr_in_file_name) in ls_2:
-                files2.append(filename)
+            elif str(nbr_in_file_name) in ls_2:
+                files_45_deg.append(filename)
 
             # Same thing as the first loop but for 67.5 HWRP
-            elif int(nbr_in_file_name) in ls_3:
-                files3.append(filename)
+            elif str(nbr_in_file_name) in ls_3:
+                files_67_deg.append(filename)
 
+        for file_list in [files_0_deg, files_22_deg, files_45_deg, files_67_deg]:
+            nbre_sets = len(file_list)/4
+            nbre_sets_remainder = len(file_list)%4
+            assert nbre_sets_remainder == 0,"There should be 4 data files for each image "
+            print "4 Files per images... All good here"
 
-        wl0, F0, F0_r = flux_diff_from_file(files0, ordinary_ray = oray, extra_ray = eray)
-        ls_F0.append(F0)
-        ls_F0_r.append(F0_r)
-        wl1, F1, F1_r = flux_diff_from_file(files1, ordinary_ray = oray, extra_ray = eray)
-        ls_F1.append(F1)
-        ls_F1_r.append(F1_r)
-        wl2, F2, F2_r = flux_diff_from_file(files2, ordinary_ray = oray, extra_ray = eray)
-        ls_F2.append(F2)
-        ls_F2_r.append(F2_r)
-        wl3, F3, F3_r = flux_diff_from_file(files3, ordinary_ray = oray, extra_ray = eray)
-        ls_F3.append(F3)
-        ls_F3_r.append(F3_r)
+        for i in range(int(nbre_sets)):
+            step = i*4
+            files_0_deg_subset = files_0_deg[0+step:4+step]
+            files_22_deg_subset = files_22_deg[0+step:4+step]
+            files_45_deg_subset = files_45_deg[0+step:4+step]
+            files_67_deg_subset = files_67_deg[0+step:4+step]
 
+            wl0, F0, F0_r = flux_diff_from_file(files_0_deg_subset, oray, eray, bin_size)
+            ls_F0.append(F0)
+            ls_F0_r.append(F0_r)
+            wl1, F1, F1_r = flux_diff_from_file(files_22_deg_subset, oray, eray, bin_size)
+            ls_F1.append(F1)
+            ls_F1_r.append(F1_r)
+            wl2, F2, F2_r = flux_diff_from_file(files_45_deg_subset, oray,  eray, bin_size)
+            ls_F2.append(F2)
+            ls_F2_r.append(F2_r)
+            wl3, F3, F3_r = flux_diff_from_file(files_67_deg_subset, oray,  eray, bin_size)
+            ls_F3.append(F3)
+            ls_F3_r.append(F3_r)
 
         assert len(wl0) == len(wl1) == len(wl2) == len(wl3), "Wavelength bins not homogenous. This will be an issue."
 
@@ -869,6 +883,7 @@ def lin_specpol(oray='ap2', hwrpafile = 'hwrpangles.txt',
 
         stdv_e = np.std(stdv_dequ)
         avg_e = np.average(stdv_dequ)
+
 
         return pf, p_r*100, qf, q_r*100, uf, u_r*100, theta, theta_r, delta_e, avg_e, stdv_e
 
@@ -1020,9 +1035,9 @@ def lin_specpol(oray='ap2', hwrpafile = 'hwrpangles.txt',
 
     #TODO: Test the fucker
     for i in range(len(ls_F0)):
-        p, pr, q, qr, u, ur, theta, thetar, delta_e, avg_e, stdv_e = specpol(wl,ls_F0[i], ls_F0_r[i],ls_F0[i],
-                                                                                 ls_F1_r[i],ls_F1[i], ls_F2_r[i],
-                                                                                 ls_F2[i], ls_F2_r[i])
+        p, pr, q, qr, u, ur, theta, thetar, delta_e, avg_e, stdv_e = specpol(wl,ls_F0[i], ls_F0_r[i],ls_F1[i],
+                                                                                 ls_F1_r[i],ls_F2[i], ls_F2_r[i],
+                                                                                 ls_F3[i], ls_F3_r[i])
         qls.append(q)
         qrls.append(qr)
         uls.append(u)
@@ -1131,23 +1146,23 @@ def lin_specpol(oray='ap2', hwrpafile = 'hwrpangles.txt',
     except:
          print 'kittens'
 
-    for l in xrange(len(bin_wl)):
+    for l in xrange(len(wl)):
         with open(pol_file+".pol", 'a') as pol_f:
-            pol_f.write(str(bin_wl[l])+'    '+str(pfinal[l])+'    '+str(prf[l])+'    '+str(qf[l])+'    '+str(qrf[l])+
+            pol_f.write(str(wl[l])+'    '+str(pfinal[l])+'    '+str(prf[l])+'    '+str(qf[l])+'    '+str(qrf[l])+
                         '    '+str(uf[l])+'    '+str(urf[l])+'    '+str(thetaf[l])+'    '+str(thetarf[l]) + '\n')
         # writing the file containing delta epsilon
         # because delta_es is a list of lists the file write out is a bit convoluted
 
     with open(pol_file+".delta", 'a') as delta_f:
         if len(delta_es) > 1 : # Case were I have more than one list in delta_es if mroe than one set of data
-            for deltas in zip(bin_wl, *delta_es): # first I am zipping my lists. The * to unpack unknwon number of lists
+            for deltas in zip(wl, *delta_es): # first I am zipping my lists. The * to unpack unknwon number of lists
                 to_write = str(deltas[0]) # I am creating a variable to store my output string, deltas[0] is the wvlgth
                 for delta in deltas[1:]: # then iterating over the values in each column
                     to_write += '    '+ str(delta) # to add them onto the string
                 to_write += '\n' # and when that's done I add the end of line character
                 delta_f.write(to_write) # and finally write it into my file
         else: # if I have only one list in delta_es then zip is going to fail and I can just do the following
-            for wl, delta in zip(bin_wl, delta_es[0]): # first I am zipping my lists
+            for wl, delta in zip(wl, delta_es[0]): # first I am zipping my lists
                 delta_f.write(str(wl)+'    '+ str(delta) +'\n')
 
     # ###### MAKING PLOTS ########
@@ -1157,51 +1172,51 @@ def lin_specpol(oray='ap2', hwrpafile = 'hwrpangles.txt',
     plt.subplots_adjust(hspace=0)
 
     # First axis is p
-    axarr[0].errorbar(bin_wl, pf, yerr=prf, c='#D92F2F')
+    axarr[0].errorbar(wl, pf, yerr=prf, c='#D92F2F')
     axarr[0].axhline(0,0, ls='--', c='k')
     pmax=-1000
-    for i in range(len(bin_wl)):
-        if bin_wl[i]>4500 and pf[i]>pmax:
+    for i in range(len(wl)):
+        if wl[i]>4500 and pf[i]>pmax:
             pmax=pfinal[i]
 
     axarr[0].set_ylim([-0.1,pmax+0.4])
     axarr[0].set_ylabel('p(%)', fontsize=14)
 
     # Then q
-    axarr[1].errorbar(bin_wl, qf, yerr=qrf, c='#D92F2F')
+    axarr[1].errorbar(wl, qf, yerr=qrf, c='#D92F2F')
     axarr[1].axhline(0,0, ls='--', c='k')
     qmax=-1000
     qmin=1000
-    for i in range(len(bin_wl)):
-        if bin_wl[i]>4500 and qf[i]>qmax:
+    for i in range(len(wl)):
+        if wl[i]>4500 and qf[i]>qmax:
             qmax=qf[i]
-        if bin_wl[i]>4500 and qf[i]<qmin:
+        if wl[i]>4500 and qf[i]<qmin:
             qmin=qf[i]
     axarr[1].set_ylim([qmin-0.3,qmax+0.3])
     axarr[1].set_ylabel('q(%)', fontsize=14)
 
     # And u
-    axarr[2].errorbar(bin_wl, uf, yerr=urf, c='#D92F2F')
+    axarr[2].errorbar(wl, uf, yerr=urf, c='#D92F2F')
     axarr[2].axhline(0,0, ls='--', c='k')
     umax=-1000
     umin=1000
-    for i in range(len(bin_wl)):
-        if bin_wl[i]>4500 and uf[i]>umax:
+    for i in range(len(wl)):
+        if wl[i]>4500 and uf[i]>umax:
             umax=uf[i]
-        if bin_wl[i]>4500 and uf[i]<umin:
+        if wl[i]>4500 and uf[i]<umin:
             umin=uf[i]
     axarr[2].set_ylim([umin-0.3,umax+0.3])
     axarr[2].set_ylabel('u(%)', fontsize=14)
 
     # P.A
-    axarr[3].errorbar(bin_wl, thetaf, yerr=thetarf, c='#D92F2F')
+    axarr[3].errorbar(wl, thetaf, yerr=thetarf, c='#D92F2F')
     axarr[3].axhline(0,0, ls='--', c='k')
     axarr[3].set_ylim([-0,180])
     axarr[3].set_ylabel('theta', fontsize=14)
 
     # And finally the Delta epsilons of each data set.
     for i in range(len(delta_es)):
-        axarr[4].plot(bin_wl, delta_es[i], alpha= 0.8)
+        axarr[4].plot(wl, delta_es[i], alpha= 0.8)
         print "Average Delta epsilon =",avg_es[i],"STDV =",stdv_es[i]
 
     axarr[4].set_ylabel(r"$\Delta \epsilon", fontsize = 16)
