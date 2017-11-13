@@ -1,5 +1,7 @@
 """
-10 - Nov - 2017 / H. F. Stevance / fstevance1@sheffield.ac.uk
+13 - Nov - 2017 / H. F. Stevance / fstevance1@sheffield.ac.uk
+
+THE FOLLOWNG IS OUT OF DATE (can do this: r.LinearSpecPol(bin_size=45, snrplot=True).main())
 
 datred.py is a module created as part of the FUSS package to help with the data reduction of spectropolarimetric
 data (at the present time only used with FORS2 data)
@@ -41,7 +43,11 @@ circ_specpol():
 flux_spectrum():
     Combines all the flux calibrated apertures to create the flux spectrum.
 """
-# TODO: internal functions name _internal_function()
+# TODO: Update above info (out of date)
+# TODO: NEED TO TEST POL_ANG
+# TODO: Make SpecPol Class that LinearSpecPol and CircularSpecPol can inherit from
+# TODO: Comments and docstrings when finished changing architecture of damn code.
+# TODO: tests!!!???
 from __future__ import division
 import os
 from astropy.io import fits
@@ -378,10 +384,10 @@ def hwrpangles(sn_name = 'CCSN', zeropol_name = 'Zero_', polstd_name='NGC2024'):
     return 
 
 
-# ####################### Creating a class #################
+#####  STUFF NEEDED FOR SPECPOL #####
 
 
-def rebin(wl, f, r, bin_siz=30):
+def rebin(wl, f, r, bin_siz=15):
     """
     To rebin my flux spectra
 
@@ -478,13 +484,60 @@ def rebin(wl, f, r, bin_siz=30):
 
     bins_err = np.sqrt(1/bins_w[:-1])
 
-    #print len(bin_centers[:-1]), len(bins_f[:-1]), len(bins_err)
     return bin_centers[:-1], bins_f[:-1], bins_err
+
+#TODO: test for pol_deg
+def pol_deg(q, u, q_r=None, u_r=None):
+    p = np.sqrt(q*q + u*u)
+    if q_r is not None and u_r is not None:
+        p_r = (1/p) * np.sqrt( (q*q_r)**2 + (u*u_r)**2 )
+        return p, p_r
+    else:
+        return p
+
+#TODO: NEED TO TEST!
+def pol_ang(q, u, q_r = None, u_r = None):
+    """
+    Calculates the polarisation angle
+    """
+
+    if isinstance(q, float):
+        theta = 0.5*m.atan2(u,q)
+        theta = (theta*180.0) /m.pi
+        if theta < 0:
+            theta += 180  # Making sure P.A is within limit 0<theta<180 deg
+
+        if q_r is not None and u_r is not None:
+            theta_r = 0.5* np.sqrt( ( (u_r/u)**2 + (q_r/q)**2) * ( 1/(1+(u/q)**2) )**2 )
+            theta_r = (theta_r*180.0) /m.pi
+            return theta , theta_r
+        else:
+            return theta
+
+    else:
+        theta = np.array([])
+        theta_r = np.array([])
+        for t in range(len(q)):
+            theta_t = 0.5*m.atan2(u[t],q[t])
+            theta_t = (theta_t*180.0) /m.pi
+            if theta_t < 0:
+                theta_t += 180 # Making sure P.A is within limit 0<theta<180 deg
+            theta = np.append(theta, theta_t)
+            if q_r is not None and u_r is not None:
+                theta_tr = 0.5* np.sqrt( ( (u_r[t]/u[t])**2 + (q_r[t]/q[t])**2) * ( 1/(1+(u[t]/q[t])**2) )**2 )
+                theta_tr = (theta_tr*180.0) /m.pi
+                theta_r = np.append(theta_r, theta_tr)
+
+        if q_r is not None and u_r is not None:
+            return theta , theta_r
+        else:
+            return theta
 
 
 class OERay(object):
     """
-    This contains the ordinary and extra ordinary rays of one single frame and other info
+    This contains the ordinary and extra ordinary rays of one single frame and other info.
+
     """
     def __init__(self, wl, orayflux, orayflux_r, erayflux, erayflux_r):
         self.wl = wl
@@ -502,10 +555,510 @@ class OERay(object):
         return self.F, self.F_r
 
 
+
+# ################# LINEAR SPECPOL ####################### #
+
+class LinearSpecPol(object):
+    def __init__(self, oray='ap2', hwrpafile = 'hwrpangles.txt',
+                bin_size = None, e_min_wl = 3775,
+                bayesian_pcorr=False, p0_step = 0.01, snrplot=False):
+
+        if oray=='ap2':
+            self.oray, self.eray = 'ap2', 'ap1'
+        elif oray=='ap1':
+            self.oray, self.eray = 'ap1', 'ap2'
+
+        self.hwrpafile = hwrpafile
+        # list of files corresponding to each angle (0, 22.5, 45, 67.5)
+        self.ls_0, self.ls_1, self.ls_2, self.ls_3 = np.genfromtxt(self.hwrpafile, dtype='str',
+                                                                   unpack = True, usecols = (0, 1, 2, 3))
+        self.bin_size = bin_size
+        self.e_min_wl = e_min_wl
+        self.bayesian_pcorr = bayesian_pcorr
+        self.p0_step = p0_step
+        self.snrplot = snrplot
+        self.wl = None
+        self.wl_bin = None
+        self.pf = None
+        self.prf = None
+        self.qf = None
+        self.qrf = None
+        self.uf = None
+        self.urf = None
+        self.thetaf = None
+        self.thetarf = None
+        self.delta_es = None
+        self.avg_es = None
+        self.stdv_es = None
+        self.pol_file = None
+
+    def main(self):
+        """
+        Main function of LinearSpecPol
+
+        Returns
+        -------
+
+        """
+        # Now getting the data from the files in lists that will be used by the specpol() function.
+        ls_F0, ls_F0_r, ls_F1, ls_F1_r, ls_F2, ls_F2_r, ls_F3, ls_F3_r = self._get_data()
+
+        qls=[]
+        qrls=[]
+        uls=[]
+        urls=[]
+        self.delta_es=[]
+        self.avg_es=[]
+        self.stdv_es=[]
+
+        for i in range(len(ls_F0)):
+            p, pr, q, qr, u, ur, theta, thetar, delta_e, avg_e, stdv_e = self._specpol(ls_F0[i], ls_F0_r[i],ls_F1[i],
+                                                                                       ls_F1_r[i],ls_F2[i], ls_F2_r[i],
+                                                                                       ls_F3[i], ls_F3_r[i])
+            qls.append(q)
+            qrls.append(qr)
+            uls.append(u)
+            urls.append(ur)
+            self.delta_es.append(delta_e)
+            self.avg_es.append(avg_e)
+            self.stdv_es.append(stdv_e)
+
+        # Where we'll put the final values of the Stokes parameters and their errors.
+        self.qf = np.array([])
+        self.uf = np.array([])
+        self.qrf = np.array([])
+        self.urf = np.array([])
+
+        for num in range(len (qls[0])):
+            # num indexes the bins each list of Stokes parameters values
+            q_to_avg=[]
+            u_to_avg=[]
+            qr_to_sum=np.array([])
+            ur_to_sum=np.array([])
+            for s in range(len(qls)):
+                # s indexes the data set from which we are taking a particular Stoke parameter
+                # We want to average values fo all data sets at each wavelength bins. For example say I have
+                # 3 data sets, at 5000 A say, I am gonna take the 3 values of q in each data set at 5000 A and
+                # average them. Do the same accross the whole spectrum and with each Stoke parameter to get final results.
+                q_to_avg.append(qls[s][num])
+                u_to_avg.append(uls[s][num])
+
+                # For the next 4 lines I am calculating the error on the mean and putting it in final list of errors on
+                # Stokes parameters
+                qr_to_sum=np.append(qr_to_sum, 1/((qrls[s][num])**2))
+                ur_to_sum=np.append(ur_to_sum, 1/((urls[s][num])**2))
+            self.qrf = np.append(self.qrf, np.sqrt(1/np.sum(qr_to_sum)))
+            self.urf = np.append(self.urf, np.sqrt(1/np.sum(ur_to_sum)))
+
+            self.qf = np.append(self.qf, np.average(q_to_avg, weights=qr_to_sum))
+            self.uf = np.append(self.uf, np.average(u_to_avg, weights=ur_to_sum))
+
+        # Once I have my final Stokes parameters I can calculate the final degree of polarisation (and error).
+        pf_before_corr, self.prf = pol_deg(self.qf, self.uf, self.qrf, self.urf)
+
+        # And finally the P.A !
+        self.thetaf=np.array([])
+        self.thetarf=np.array([])
+        for t in range(len(self.qrf)):
+            thetaf_t = 0.5*m.atan2(self.uf[t],self.qf[t])
+            thetarf_t = 0.5* np.sqrt( ( (self.urf[t]/self.uf[t])**2 + (self.qrf[t]/self.qf[t])**2) * ( 1/(1+(self.uf[t]/self.qf[t])**2) )**2 )
+            thetaf_t = (thetaf_t*180.0) /m.pi
+            thetarf_t = (thetarf_t*180.0) /m.pi
+            if thetaf_t < 0:
+                thetaf_t += 180  # Again need to make sure the range is within 0-180 deg
+            self.thetaf=np.append(self.thetaf, thetaf_t)
+            self.thetarf=np.append(self.thetarf, thetarf_t)
+
+        # #### P Bias Correction #### #
+
+        #  If bayesian_pcorr is False, P will be debiased as in Wang et al. 1997 using a step function
+        if self.bayesian_pcorr is False:
+            print "Step Func - p correction"
+            self.pf = np.array([])
+            for ind in range(len(pf_before_corr)):
+                condition = pf_before_corr[ind] - self.prf[ind]
+                if condition > 0:
+                    p_0i = pf_before_corr[ind]-((float(self.prf[ind]**2))/float(pf_before_corr[ind]))
+                elif condition < 0:
+                    p_0i = pf_before_corr[ind]
+
+                self.pf = np.append(self.pf, p_0i)
+
+        #  If bayesian_pcorr is True, P will be debiased using the Bayesian method described by J. L. Quinn 2012
+        #  the correceted p is pbar_{0,mean} * sigma. pbar_{0,mean} is given by equation 47 of J. L. Quinn 2012
+
+        if self.bayesian_pcorr is True:
+            print "Bayesian - p correction"
+            sigma = (self.qrf + self.urf)/2
+            pbar = pf_before_corr/sigma
+            self.pf = np.array([])
+            for j in range(len(pbar)):
+                p0 = np.arange(self.p0_step, pbar[j], self.p0_step)
+                rho = np.array([])
+                for i in range(len(p0)):
+                    tau = (sigma[j]**2)*2*p0[i]
+                    pp0 = pbar[j]*p0[i]
+
+                    rice_distribution = pbar[j]*np.exp(-((pbar[j]**2 + p0[i]**2)/2)) * special.iv(0, pp0)
+                    if m.isnan(rice_distribution) is True or m.isinf(rice_distribution) is True:
+                        print "Infinite values encountered. Resulting polarisation may be invalid. Use the Step function method"
+
+                    rhoi = rice_distribution * tau
+                    rho = np.append(rho, rhoi)
+
+                p0mean = np.average(p0, weights=rho)
+                self.pf = np.append(self.pf, p0mean*sigma[j])  # !!!! need to multiply by sigma to get p0 and not p0/bar.
+
+        # ###### CREATING THE TEXT FILE ###### #
+        self.pol_file = raw_input('What do you want to name the polarisation file? ')
+        try:
+            os.remove(self.pol_file+".pol")
+            os.remove(self.pol_file+".delta")
+        except:
+             print 'kittens'
+
+        self._make_pol_file()
+        self._make_delta_file()
+        self._make_plots()
+
+        return self.pf, self.prf, self.qf, self.qrf, self.uf, self.urf, self.thetaf, self.thetarf, self.delta_es
+
+    def _get_data(self):
+        """
+        This takes the flux data from the text files given by IRAF and sorts them in lists for later use.
+
+        """
+
+        # Need to do this because python doesn't read files in alphabetical order but in order they
+        # are written on the disc
+        sorted_files = sorted([filename for filename in os.listdir(".")
+                           if 'dSCIENCE' in filename and 'fits' not in filename and 'c_' not in filename])
+        ls_F0 = []
+        ls_F0_r = []
+
+        ls_F1 = []
+        ls_F1_r = []
+
+        ls_F2 = []
+        ls_F2_r = []
+
+        ls_F3 = []
+        ls_F3_r = []
+
+        valid1 = re.compile('SCI')
+        valid2 = re.compile('STD')
+        find_nbr = re.compile('\d{1,3}')  # This is what we'll look for in filename: a number 1-3 digits long
+                                               # The first part searches for the
+        files_0_deg = []
+        files_22_deg = []
+        files_45_deg = []
+        files_67_deg = []
+
+        for filename in sorted_files:
+            nbr_in_file_name = "PasLa"
+            # finding the number in the filename. Searched through filename for a 1-3 digit number and returns it.
+            try:
+                if valid1.search(filename) or  valid2.search(filename):
+                    nbr_in_file_name = find_nbr.search(filename[1:]).group()
+                    # removing first character as files start with a 1 usually and that messes things up
+            except AttributeError:
+                print "Couldn't find a number in this filename - passing"
+                pass
+            # The following compares the number in the filename to the number in ls_0 to see if the image
+            # correspond to a 0 deg HWRP angle set up.
+
+            if str(nbr_in_file_name) in self.ls_0:
+                files_0_deg.append(filename)
+
+            # Same thing as the first loop but for 22.5 HWRP
+            elif str(nbr_in_file_name) in self.ls_1:
+                files_22_deg.append(filename)
+
+            # Same thing as the first loop but for 45 HWRP
+            elif str(nbr_in_file_name) in self.ls_2:
+                files_45_deg.append(filename)
+
+            # Same thing as the first loop but for 67.5 HWRP
+            elif str(nbr_in_file_name) in self.ls_3:
+                files_67_deg.append(filename)
+
+        for file_list in [files_0_deg, files_22_deg, files_45_deg, files_67_deg]:
+            nbre_sets = len(file_list)/4
+            nbre_sets_remainder = len(file_list)%4
+            assert nbre_sets_remainder == 0,"There should be 4 data files for each image "
+            print "4 Files per images... All good here"
+
+        for i in range(int(nbre_sets)):
+            step = i*4
+            files_0_deg_subset = files_0_deg[0+step:4+step]
+            files_22_deg_subset = files_22_deg[0+step:4+step]
+            files_45_deg_subset = files_45_deg[0+step:4+step]
+            files_67_deg_subset = files_67_deg[0+step:4+step]
+            if i == 0:
+                check = True
+            wl0, F0, F0_r = self._flux_diff_from_file(files_0_deg_subset, check_bin = check)
+            ls_F0.append(F0)
+            ls_F0_r.append(F0_r)
+            wl1, F1, F1_r = self._flux_diff_from_file(files_22_deg_subset)
+            ls_F1.append(F1)
+            ls_F1_r.append(F1_r)
+            wl2, F2, F2_r = self._flux_diff_from_file(files_45_deg_subset)
+            ls_F2.append(F2)
+            ls_F2_r.append(F2_r)
+            wl3, F3, F3_r = self._flux_diff_from_file(files_67_deg_subset)
+            ls_F3.append(F3)
+            ls_F3_r.append(F3_r)
+
+        assert len(wl0) == len(wl1) == len(wl2) == len(wl3), "Wavelength bins not homogenous. This will be an issue."
+
+        return ls_F0, ls_F0_r, ls_F1, ls_F1_r, ls_F2, ls_F2_r, ls_F3, ls_F3_r
+
+    def _flux_diff_from_file(self, files, check_bin = False):
+        # keeping this as separate function because making instance within the function means they can be forgotten
+        # when come out of it and not take up too much memory
+
+        # Extracting polarised fluxes of o and e ray and their errors according to filenames
+        for filename in files:
+            if self.oray in filename:
+                if 'err' not in filename:
+                    self.wl, fo = np.loadtxt(filename, unpack=True, usecols=(0,1))
+                else:
+                    self.wl, fo_r = np.loadtxt(filename, unpack=True, usecols=(0,1))
+
+            if self.eray in filename:
+                if 'err' not in filename:
+                    self.wl, fe = np.loadtxt(filename, unpack=True, usecols=(0,1))
+                else:
+                    self.wl, fe_r = np.loadtxt(filename, unpack=True, usecols=(0,1))
+
+        # BINNING
+        if self.bin_size is None:
+            self.wl_bin, fo_bin, fo_bin_r, fe_bin, fe_bin_r = self.wl, fo, fo_r, fe, fe_r
+
+        else:
+            print "Binning to ", self.bin_size, "Angstrom"
+            self.wl_bin, fo_bin, fo_bin_r = rebin(self.wl, fo, fo_r, bin_siz=self.bin_size)
+            self.wl_bin, fe_bin, fe_bin_r = rebin(self.wl, fe, fe_r, bin_siz=self.bin_size)
+
+            # To perform a few checks on the binning (in particular the SNR yielded by binning)
+            if check_bin is True:
+                self._check_binning(fo, fe, fo_r, fe_r, fo_bin, fe_bin, fo_bin_r, fe_bin_r)
+
+        # Creating the ordinary ray - extraordinary ray data object
+        data_object = OERay(self.wl_bin, fo_bin, fo_bin_r, fe_bin, fe_bin_r)
+        F, F_r = data_object.norm_flux_diff() # and calculating the flux difference
+
+        return self.wl_bin, F, F_r
+
+    def _check_binning(self, fo, fe, fo_r, fe_r, bin_fo, bin_fe, bin_fo_r, bin_fe_r):
+        snr_not_binned = np.array((fo + fe)/np.sqrt(fo_r**2 + fe_r**2))
+        snr_expected = snr_not_binned*np.sqrt(self.bin_size/(self.wl[1]-self.wl[0]))
+        ind_not_binned_central_wl = int(np.argwhere(self.wl == min(self.wl, key=lambda x:abs(x-6204)))[0])
+        snr_not_binned_central_wl = snr_not_binned[ind_not_binned_central_wl]
+        snr_central_expected = snr_not_binned_central_wl * np.sqrt(self.bin_size/(self.wl[1]-self.wl[0]))
+
+        snr_binned = np.array((bin_fo + bin_fe)/np.sqrt(bin_fo_r**2 + bin_fe_r**2))
+        ind_central_wl = int(np.argwhere(self.wl_bin == min(self.wl_bin, key=lambda x:abs(x-6204)))[0])
+        snr_central_wl = (bin_fo[ind_central_wl] + bin_fe[ind_central_wl])/\
+                        np.sqrt(bin_fo_r[ind_central_wl]**2 + bin_fe_r[ind_central_wl]**2)
+
+        print "\n======== BEFORE BINNING ======"
+        print "MEDIAN SNR "
+        print np.median(snr_not_binned)
+
+        print "CENTRAL SNR at (", self.wl[ind_not_binned_central_wl], " A)"
+        print snr_not_binned_central_wl
+
+        print "======== AFTER BINNING ======"
+
+        print "MEDIAN SNR / EXPECTED "
+        print np.median(snr_binned), np.median(snr_expected)
+
+        print "CENTRAL SNR / EXPECTED (at ", self.wl[ind_not_binned_central_wl], " A)"
+        print snr_central_wl , snr_central_expected
+        print "\n"
+
+        if self.snrplot is True:
+            plt.plot(self.wl, snr_expected, marker='o',label='Expected')
+            plt.plot(self.wl_bin, snr_binned, marker='x', label='Calculated after binning')
+            plt.legend()
+            plt.title("SNR")
+            plt.show()
+
+        return
+
+    def _specpol(self, F0, F0_r, F1, F1_r, F2, F2_r, F3, F3_r):
+        """
+        Finds the p, q, u, theta and errors on these quantities for a set of spectropolarimetric data.
+
+        Notes
+        -----
+        For lin_specpol() use only
+
+        Parameters
+        ----------
+        wl : array
+            Wavelengths
+
+
+        Returns
+        -------
+        arrays
+            p, q, and u in percent, with associated errors, as well as theta in degrees ( 0 < theta < 180) and its
+            errors.
+        """
+
+        # Now Stokes parameters and degree of pol.
+        q = 0.5*(F0-F2)
+        u = 0.5*(F1-F3)
+        q_r = 0.5*np.sqrt(F0_r**2 + F2_r**2)
+        u_r = 0.5*np.sqrt(F1_r**2 + F3_r**2)
+        p , p_r = pol_deg(q, u, q_r, u_r)
+
+        # Arrays where we're going to store the values of p and Stokes parameters and P.A
+        # after we've applied corrections.
+        pf = np.array([])
+        qf = np.array([])
+        uf = np.array([])
+        theta = np.array([])
+
+        # We take our chromatic zero-angles and interpolate them to match the wavlength bins of our data.
+        wl2, thetaz = np.loadtxt(zero_angles, unpack = True, usecols =(0,1))
+        theta0 = np.interp(self.wl_bin, wl2, thetaz)
+
+        # Now we apply corrections to the P.A
+        for t in range(len(q)):
+            theta_t = 0.5*m.atan2(u[t],q[t])
+            theta_r = 0.5* np.sqrt( ( (u_r[t]/u[t])**2 + (q_r[t]/q[t])**2) * ( 1/(1+(u[t]/q[t])**2) )**2 )
+            theta_t = (theta_t*180.0) /m.pi
+            theta_r = (theta_r*180.0) /m.pi
+            if theta_t < 0:
+                theta_t += 180  # Making sure P.A is within limit 0<theta<180 deg
+
+            theta_cor = theta_t - theta0[t]
+            theta_cor_rad = (theta_cor/180.0)*m.pi
+            theta = np.append(theta, theta_cor)
+            q_t = p[t]*m.cos(2*theta_cor_rad) # Re-calculating Stokes parameters
+            u_t = p[t]*m.sin(2*theta_cor_rad)
+            qf = np.append(qf, q_t*100) # Filling our arrays of final Stokes parameters and p.
+            uf = np.append(uf, u_t*100)
+            pf = np.append(pf, np.sqrt(q_t**2 + u_t**2)*100)
+
+        # Now calculating epsilon q and epsilon u and Delta epsilon.
+        eq = (0.5*F0 + 0.5*F2)*100 # in percent
+        eu = (0.5*F1 + 0.5*F3)*100
+        delta_e = eq-eu
+        stdv_dequ=[]
+        try:
+            for i in xrange(len(self.wl_bin)):
+                if self.wl_bin[i] > self.e_min_wl:
+                    dequ=eq[i]-eu[i]
+                    stdv_dequ.append(dequ)
+        except IndexError:
+            dequ = eq-eu
+            stdv_dequ.append(dequ)
+
+        stdv_e = np.std(stdv_dequ)
+        avg_e = np.average(stdv_dequ)
+
+        return  pf, p_r*100, qf, q_r*100, uf, u_r*100, theta, theta_r, delta_e, avg_e, stdv_e
+
+    def _make_pol_file(self):
+        for l in xrange(len(self.wl_bin)):
+            with open(self.pol_file+".pol", 'a') as pol_f:
+                pol_f.write(str(self.wl_bin[l])+'    '+str(self.pf[l])+'    '+str(self.prf[l])+'    '+str(self.qf[l])
+                            +'    '+str(self.qrf[l])+'    '+str(self.uf[l])+'    '+str(self.urf[l])+'    '
+                            +str(self.thetaf[l])+'    '+str(self.thetarf[l]) + '\n')
+
+    def _make_delta_file(self):
+            # writing the file containing delta epsilon
+            # because delta_es is a list of lists the file write out is a bit convoluted
+        with open(self.pol_file+".delta", 'a') as delta_f:
+            if len(self.delta_es) > 1 : # Case were I have more than one list in delta_es if mroe than one set of data
+                for deltas in zip(self.wl_bin, *self.delta_es): # first I am zipping my lists. The * to unpack unknwon number of lists
+                    to_write = str(deltas[0]) # I am creating a variable to store my output string, deltas[0] is the wvlgth
+                    for delta in deltas[1:]: # then iterating over the values in each column
+                        to_write += '    '+ str(delta) # to add them onto the string
+                    to_write += '\n' # and when that's done I add the end of line character
+                    delta_f.write(to_write) # and finally write it into my file
+            else: # if I have only one list in delta_es then zip is going to fail and I can just do the following
+                for wl, delta in zip(self.wl_bin, self.delta_es[0]): # first I am zipping my lists
+                    delta_f.write(str(wl)+'    '+ str(delta) +'\n')
+
+    def _make_plots(self):
+        f, axarr = plt.subplots(5, 1, figsize=(8, 8), sharex=True)
+        plt.subplots_adjust(hspace=0)
+
+        # First axis is p
+        axarr[0].errorbar(self.wl_bin, self.pf, yerr=self.prf, c='#D92F2F')
+        axarr[0].axhline(0,0, ls='--', c='k')
+        pmax=-1000
+        for i in range(len(self.wl_bin)):
+            if self.wl_bin[i]>4500 and self.pf[i]>pmax:
+                pmax=self.pf[i]
+
+        axarr[0].set_ylim([-0.1,pmax+0.4])
+        axarr[0].set_ylabel('p(%)', fontsize=14)
+
+        # Then q
+        axarr[1].errorbar(self.wl_bin, self.qf, yerr=self.qrf, c='#D92F2F')
+        axarr[1].axhline(0,0, ls='--', c='k')
+        qmax=-1000
+        qmin=1000
+        for i in range(len(self.wl_bin)):
+            if self.wl_bin[i]>4500 and self.qf[i]>qmax:
+                qmax=self.qf[i]
+            if self.wl_bin[i]>4500 and self.qf[i]<qmin:
+                qmin=self.qf[i]
+        axarr[1].set_ylim([qmin-0.3,qmax+0.3])
+        axarr[1].set_ylabel('q(%)', fontsize=14)
+
+        # And u
+        axarr[2].errorbar(self.wl_bin, self.uf, yerr=self.urf, c='#D92F2F')
+        axarr[2].axhline(0,0, ls='--', c='k')
+        umax=-1000
+        umin=1000
+        for i in range(len(self.wl_bin)):
+            if self.wl_bin[i]>4500 and self.uf[i]>umax:
+                umax=self.uf[i]
+            if self.wl_bin[i]>4500 and self.uf[i]<umin:
+                umin=self.uf[i]
+        axarr[2].set_ylim([umin-0.3,umax+0.3])
+        axarr[2].set_ylabel('u(%)', fontsize=14)
+
+        # P.A
+        axarr[3].errorbar(self.wl_bin, self.thetaf, yerr=self.thetarf, c='#D92F2F')
+        axarr[3].axhline(0,0, ls='--', c='k')
+        axarr[3].set_ylim([-0,180])
+        axarr[3].set_ylabel('theta', fontsize=14)
+
+        # And finally the Delta epsilons of each data set.
+        for i in range(len(self.delta_es)):
+            axarr[4].plot(self.wl_bin, self.delta_es[i], alpha= 0.8)
+            print "Average Delta epsilon =", self.avg_es[i],"STDV =", self.stdv_es[i]
+
+        axarr[4].set_ylabel(r"$\Delta \epsilon", fontsize = 16)
+        axarr[4].set_ylim([-4.0,4.0])
+        plt.xlim([3500,10000])
+
+        save_cond = raw_input("do you want to save the plot?(Y/n): ")
+        if save_cond =="y" or save_cond=="Y" or save_cond=="":
+            plt.savefig(self.pol_file+".png")
+            print "Plot saved"
+        else:
+            print "Plot not saved"
+
+        plt.show()
+
+# ################## FOR BACKWARDS COMPATIBILITY THE FOLLOWING IS KEPT IN DATRED.PY ##########################
+# ### copies of flux_diff_from_file() and check_binning to go into lin_specpol ######
+
+
 def flux_diff_from_file(files, ordinary_ray, extra_ray, bin_size, check_bin = False, snrplot=False):
-    # keeping this as separate funciton because makign instance within the function means they can be forgotten
+    # keeping this as separate function because making instance within the function means they can be forgotten
     # when come out of it and not take up too much memory
 
+    # Extracting polarised fluxes of o and e ray and their errors according to filenames
     for filename in files:
         if ordinary_ray in filename:
             if 'err' not in filename:
@@ -525,16 +1078,16 @@ def flux_diff_from_file(files, ordinary_ray, extra_ray, bin_size, check_bin = Fa
 
     else:
         print "Binning to ", bin_size, "Angstrom"
-        #print "Binning oray"
         wl_bin, fo_bin, fo_bin_r = rebin(wl, fo, fo_r, bin_siz=bin_size)
-        #TODO: test the binning with plots like done in previous version
         wl_bin, fe_bin, fe_bin_r = rebin(wl, fe, fe_r, bin_siz=bin_size)
 
+        # To perform a few checks on the binning (in particular the SNR yielded by binning)
         if check_bin is True:
             check_binning(wl, fo, fe, fo_r, fe_r, wl_bin, fo_bin, fe_bin, fo_bin_r, fe_bin_r, bin_size, snrplot=snrplot)
 
+    # Creating the oddinary ray - extraordinary ray data object
     data_object = OERay(wl_bin, fo_bin, fo_bin_r, fe_bin, fe_bin_r)
-    F, F_r = data_object.norm_flux_diff()
+    F, F_r = data_object.norm_flux_diff() # and calculating the flux difference
 
     return wl_bin, F, F_r
 
@@ -571,21 +1124,10 @@ def check_binning(wl, fo, fe, fo_r, fe_r, bin_wl, bin_fo, bin_fe, bin_fo_r, bin_
         plt.plot(wl, snr_expected, marker='o',label='Expected')
         plt.plot(bin_wl, snr_binned, marker='x', label='Calculated after binning')
         plt.legend()
+        plt.title("SNR")
         plt.show()
 
     return
-
-
-def pol_deg(q, u, q_r=None, u_r=None):
-    p = np.sqrt(q*q + u*u)
-    if q_r is not None and u_r is not None:
-        p_r = (1/p) * np.sqrt( (q*q_r)**2 + (u*u_r)**2 )
-        return p, p_r
-    else:
-        return p
-
-
-# ################# SPECPOL. IT'S BIG WITH NESTED FUNCTIONS - MAYBE BAD CODE, BUT IT WORKS ####################### #
 
 
 def lin_specpol(oray='ap2', hwrpafile = 'hwrpangles.txt',
@@ -617,6 +1159,9 @@ def lin_specpol(oray='ap2', hwrpafile = 'hwrpangles.txt',
         Step size (and starting point) of the p0 distribution. If the step is larger that an observed value of p then
         the code will fail, and you should decrease the step size. Also increases the run time significantly.
         Default is 0.01
+    snrplot : Boolean
+        If True and bin_size is not None, plots of expected Vs calculated SNR after binning will be showed for the
+        first ordinary and extra ordinary ray at 0 degree HWRP angle.
     """
     if oray=='ap2':
         eray='ap1'
@@ -626,7 +1171,7 @@ def lin_specpol(oray='ap2', hwrpafile = 'hwrpangles.txt',
     #########################################
     #                LIN_SPECPOL            #
     #########################################
-        
+
     def get_data(ls_0, ls_1, ls_2, ls_3):
         """
         This takes the flux data from the text files given by IRAF and sorts them in lists for later use.
@@ -850,7 +1395,6 @@ def lin_specpol(oray='ap2', hwrpafile = 'hwrpangles.txt',
         avg_es.append(avg_e)
         stdv_es.append(stdv_e)
 
-
     # Where we'll put the final values of the Stokes parameters and their errors.
     qf=np.array([])
     uf=np.array([])
@@ -966,8 +1510,8 @@ def lin_specpol(oray='ap2', hwrpafile = 'hwrpangles.txt',
                 to_write += '\n' # and when that's done I add the end of line character
                 delta_f.write(to_write) # and finally write it into my file
         else: # if I have only one list in delta_es then zip is going to fail and I can just do the following
-            for wl, delta in zip(wl, delta_es[0]): # first I am zipping my lists
-                delta_f.write(str(wl)+'    '+ str(delta) +'\n')
+            for wlgth, delta in zip(wl, delta_es[0]): # first I am zipping my lists
+                delta_f.write(str(wlgth)+'    '+ str(delta) +'\n')
 
     # ###### MAKING PLOTS ########
     # Just to check that everything looks right.
@@ -976,6 +1520,7 @@ def lin_specpol(oray='ap2', hwrpafile = 'hwrpangles.txt',
     plt.subplots_adjust(hspace=0)
 
     # First axis is p
+    print wl
     axarr[0].errorbar(wl, pf, yerr=prf, c='#D92F2F')
     axarr[0].axhline(0,0, ls='--', c='k')
     pmax=-1000
@@ -1036,10 +1581,10 @@ def lin_specpol(oray='ap2', hwrpafile = 'hwrpangles.txt',
 
     plt.show()
 
-    return pf, prf, qf, qrf, uf, urf, thetaf, thetarf, delta_es
+    return pfinal, prf, qf, qrf, uf, urf, thetaf, thetarf, delta_es
 
 
-# #####################~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~########################### #
+
 
 
 def circ_specpol(oray='ap2', hwrpafile = 'hwrpangles_v.txt', bin_size=None, e_min_wl = 3775):
