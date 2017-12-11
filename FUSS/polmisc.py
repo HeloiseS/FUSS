@@ -538,7 +538,7 @@ class PolData(object):
         print "Polarisation data initialised. If you want to add Stokes I use add_flux_data(). " \
               "To find ISP use find_isp(). \n"
 
-    def add_flux_data(self, filename, wlmin=None, wlmax=1000000, err=False):
+    def add_flux_data(self, filename, wlmin=None, wlmax=1000000, err=False, scale=False):
         """
         Adds flux spectrum data attributes to the PolData.
 
@@ -553,7 +553,7 @@ class PolData(object):
         err : bool
             If false, only imports wavelength and flux, not the error on the flux. Default = False.
         """
-        flux = get_spctr(filename, wlmin=wlmin, wlmax=wlmax)
+        flux = get_spctr(filename, wlmin=wlmin, wlmax=wlmax, scale=scale)
         self.wlf = flux[0]
         self.f = flux[1]
         if err is True:
