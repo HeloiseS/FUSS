@@ -49,6 +49,7 @@ flux_spectrum():
 # TODO: Comments and docstrings when finished changing architecture of damn code.
 # TODO: tests!!!???
 from __future__ import division
+from __future__ import print_function
 import os
 from astropy.io import fits
 import numpy as np
@@ -113,7 +114,7 @@ def sort_red():
                     os.system('mv ' + filename + ' CHIP2')
                 hdulist.close()
             except:
-                print "Not CHIP2 " + filename
+                print("Not CHIP2 " + filename)
 
     for filename in filename_list:
         # Here we are renaming the files. The naming convention used here is assumed throughout the rest of the datred sub-module.
@@ -159,7 +160,7 @@ def sort_red():
 
                 hdulist.close()
             except:
-                print "Could not sort this file (type?) " + filename
+                print("Could not sort this file (type?) " + filename)
 
     os.chdir('Data_reduction')
 
@@ -175,12 +176,13 @@ def sort_red():
                 if size_x == 4096:
                     os.system('mv ' + filename + ' wrong_size')
             except:
-                print "Could not sort this file (size?) " + filename
+                print("Could not sort this file (size?) " + filename)
             hdulist.close()
 
-    print '\nAll Done! :D \n'
+    print('\nAll Done! :D \n')
 
-
+#TODO: use pandas!
+#TODO: Add to MetaData?
 def info():
     """
     Creates table containing useful information on the images (taken from the headers).
@@ -195,8 +197,8 @@ def info():
     """
     try:
         os.remove('image_info.txt')
-    except:
-        print 'kitten'
+    except OSError:
+        pass
 
     for filename in os.listdir("."):
         # Here we go through the headers and take out the information that we need to create the fits files.
@@ -371,12 +373,13 @@ def hwrpangles(sn_name='CCSN', zeropol_name='Zero_', polstd_name='NGC2024'):
 
         try:
             os.remove(output_name + '.txt')
-        except:
-            'kitten'
+        except OSError:
+            pass
+
         try:
             os.remove(output_name + '_v.txt')
-        except:
-            'kitten'
+        except OSError:
+            pass
 
         for i in xrange(len(ls_0)):
             with open(output_name + '.txt', 'a') as f:
@@ -458,7 +461,7 @@ def rebin(wl, f, r, bin_siz=15):
                     bins_w[n + 1] += weights[i] * frac_overlap
 
                 except IndexError:
-                    print"Index Error at ", wl[i]
+                    print("Index Error at ", wl[i])
                     pass
 
             elif wl[i] > edge:
@@ -470,7 +473,7 @@ def rebin(wl, f, r, bin_siz=15):
                     bins_w[n + 1] += weights[i] * (1 - frac_overlap)
 
                 except IndexError:
-                    print"Index Error at ", wl[i]
+                    print("Index Error at ", wl[i])
                     pass
 
         else:
@@ -478,13 +481,12 @@ def rebin(wl, f, r, bin_siz=15):
                 bins_f[n] += f[i] * weights[i]
                 bins_w[n] += weights[i]
             except IndexError:
-                print"Index Error at ", wl[i]
+                print("Index Error at ", wl[i])
                 pass
 
     for i in range(len(bin_centers)):
         if bins_w[i] == 0.0:
-            print bin_centers[i], bins_w[i]
-            print "CAREFUL! BIN WLGTH == 0!"
+            print(bin_centers[i], bins_w[i], "\nCAREFUL! BIN WLGTH == 0!")
 
     bins_f[:-1] /= bins_w[:-1]  # normalise weighted values by sum of weights to get weighted average
 
@@ -549,12 +551,9 @@ def pol_ang(q, u, q_r=None, u_r=None):
         else:
             return theta
 
-
+"""
 class OERay(object):
-    """
-    This contains the ordinary and extra ordinary rays of one single frame and other info.
 
-    """
 
     def __init__(self, wl, orayflux, orayflux_r, erayflux, erayflux_r):
         self.wl = wl
@@ -572,6 +571,16 @@ class OERay(object):
                     (1 / (self.fo - self.fe) ** 2) + (1 / (self.fo + self.fe) ** 2)))
 
         return self.F, self.F_r
+"""
+
+def F_from_oeray(fo, fe, fo_r, fe_r):
+
+    F = (fo - fe) / (fo + fe)
+    F_r = abs(F) * np.sqrt(
+            ((fo_r ** 2) + (fe_r ** 2)) * (
+                (1 / (fo - fe) ** 2) + (1 / (fo + fe) ** 2)))
+
+    return F, F_r
 
 
 class MetaData(object):
@@ -619,19 +628,19 @@ class MetaData(object):
         zeropol_df = self._meta_data_frame(zeropol)
         polstd_df = self._meta_data_frame(polstd)
 
-        self._write_to_file(target_df, 'meta_target.dat')
-        self._write_to_file(zeropol_df, 'meta_zerostd.dat')
-        self._write_to_file(polstd_df, 'meta_polstd.dat')
+        self._to_csv(target_df, 'meta_target.dat')
+        self._to_csv(zeropol_df, 'meta_zerostd.dat')
+        self._to_csv(polstd_df, 'meta_polstd.dat')
 
         return
 
-    def _write_to_file(self, data_frame, output_file):
+    def _to_csv(self, data_frame, output_file):
         try:
             os.remove(output_file)
         except OSError:
             pass
 
-        data_frame.to_csv(output_file, sep='\t')
+        data_frame.to_csv(output_file, sep='\t', index=False)
         return
 
     def _meta_data_frame(self, list_files):
@@ -666,8 +675,7 @@ class MetaData(object):
 
 class LinearSpecPol(object):
     def __init__(self, oray='ap2', hwrpafile='hwrpangles.txt',
-                 bin_size=None, e_min_wl=3775,
-                 bayesian_pcorr=False, p0_step=0.01, snrplot=False):
+                 bin_size=None, snrplot=False):
 
         if oray == 'ap2':
             self.oray, self.eray = 'ap2', 'ap1'
@@ -679,26 +687,14 @@ class LinearSpecPol(object):
         self.ls_0, self.ls_1, self.ls_2, self.ls_3 = np.genfromtxt(self.hwrpafile, dtype='str',
                                                                    unpack=True, usecols=(0, 1, 2, 3))
         self.bin_size = bin_size
-        self.e_min_wl = e_min_wl
-        self.bayesian_pcorr = bayesian_pcorr
-        self.p0_step = p0_step
-        self.snrplot = snrplot
-        self.wl = None
+        self.wl= None
         self.wl_bin = None
-        self.pf = None
-        self.prf = None
-        self.qf = None
-        self.qrf = None
-        self.uf = None
-        self.urf = None
-        self.thetaf = None
-        self.thetarf = None
-        self.delta_es = None
-        self.avg_es = None
-        self.stdv_es = None
+        self.poldata = pd.DataFrame(columns = ['wl', 'p', 'pr', 'q', 'qr',
+                                               'u', 'ur', 'theta', 'thetar'], dtype='float64')
+        self.snrplot = snrplot
         self.pol_file = None
 
-    def main(self):
+    def calculate(self):
         """
         Main function of LinearSpecPol
 
@@ -709,31 +705,27 @@ class LinearSpecPol(object):
         # Now getting the data from the files in lists that will be used by the specpol() function.
         ls_F0, ls_F0_r, ls_F1, ls_F1_r, ls_F2, ls_F2_r, ls_F3, ls_F3_r = self._get_data()
 
+        self.poldata["wl"] = self.wl_bin # even if have not rebinned since in that case we do self.wl_bin = self.wl
+
         qls = []
         qrls = []
         uls = []
         urls = []
         self.delta_es = []
-        self.avg_es = []
-        self.stdv_es = []
+
 
         for i in range(len(ls_F0)):
-            p, pr, q, qr, u, ur, theta, thetar, delta_e, avg_e, stdv_e = self._specpol(ls_F0[i], ls_F0_r[i], ls_F1[i],
+            p, pr, q, qr, u, ur, theta, thetar, delta_e= self._specpol(ls_F0[i], ls_F0_r[i], ls_F1[i],
                                                                                        ls_F1_r[i], ls_F2[i], ls_F2_r[i],
                                                                                        ls_F3[i], ls_F3_r[i])
             qls.append(q)
             qrls.append(qr)
             uls.append(u)
             urls.append(ur)
-            self.delta_es.append(delta_e)
-            self.avg_es.append(avg_e)
-            self.stdv_es.append(stdv_e)
 
-        # Where we'll put the final values of the Stokes parameters and their errors.
-        self.qf = np.array([])
-        self.uf = np.array([])
-        self.qrf = np.array([])
-        self.urf = np.array([])
+            self.poldata["delta_eps"+str(i)] = delta_e
+
+
 
         for num in range(len(qls[0])):
             # num indexes the bins each list of Stokes parameters values
@@ -753,84 +745,32 @@ class LinearSpecPol(object):
                 # Stokes parameters
                 qr_to_sum = np.append(qr_to_sum, 1 / ((qrls[s][num]) ** 2))
                 ur_to_sum = np.append(ur_to_sum, 1 / ((urls[s][num]) ** 2))
-            self.qrf = np.append(self.qrf, np.sqrt(1 / np.sum(qr_to_sum)))
-            self.urf = np.append(self.urf, np.sqrt(1 / np.sum(ur_to_sum)))
 
-            self.qf = np.append(self.qf, np.average(q_to_avg, weights=qr_to_sum))
-            self.uf = np.append(self.uf, np.average(u_to_avg, weights=ur_to_sum))
 
-        # Once I have my final Stokes parameters I can calculate the final degree of polarisation (and error).
-        pf_before_corr, self.prf = pol_deg(self.qf, self.uf, self.qrf, self.urf)
+            self.poldata.loc[num, 'q'] = np.average(q_to_avg, weights=qr_to_sum)
+            self.poldata.loc[num, 'u'] = np.average(u_to_avg, weights=ur_to_sum)
+            self.poldata.loc[num, 'qr'] = np.sqrt(1 / np.sum(qr_to_sum))
+            self.poldata.loc[num, 'ur'] = np.sqrt(1 / np.sum(ur_to_sum))
+
+        # Once I have my final Stokes parameters I can calculate the final debiases degree of polarisation (and error).
+        self.poldata['p'], self.poldata['pr'] = pol_deg(self.poldata['q'].values, self.poldata['u'].values,
+                                                         self.poldata['qr'].values, self.poldata['ur'].values)
 
         # And finally the P.A !
-        self.thetaf = np.array([])
-        self.thetarf = np.array([])
-        for t in range(len(self.qrf)):
-            thetaf_t = 0.5 * m.atan2(self.uf[t], self.qf[t])
-            thetarf_t = 0.5 * np.sqrt(((self.urf[t] / self.uf[t]) ** 2 + (self.qrf[t] / self.qf[t]) ** 2) * (
-                1 / (1 + (self.uf[t] / self.qf[t]) ** 2)) ** 2)
-            thetaf_t = (thetaf_t * 180.0) / m.pi
-            thetarf_t = (thetarf_t * 180.0) / m.pi
-            if thetaf_t < 0:
-                thetaf_t += 180  # Again need to make sure the range is within 0-180 deg
-            self.thetaf = np.append(self.thetaf, thetaf_t)
-            self.thetarf = np.append(self.thetarf, thetarf_t)
-
-        # #### P Bias Correction #### #
-
-        #  If bayesian_pcorr is False, P will be debiased as in Wang et al. 1997 using a step function
-        if self.bayesian_pcorr is False:
-            print "Step Func - p correction"
-            self.pf = np.array([])
-            for ind in range(len(pf_before_corr)):
-                condition = pf_before_corr[ind] - self.prf[ind]
-                if condition > 0:
-                    p_0i = pf_before_corr[ind] - ((float(self.prf[ind] ** 2)) / float(pf_before_corr[ind]))
-                elif condition < 0:
-                    p_0i = pf_before_corr[ind]
-
-                self.pf = np.append(self.pf, p_0i)
-
-        # If bayesian_pcorr is True, P will be debiased using the Bayesian method described by J. L. Quinn 2012
-        #  the correceted p is pbar_{0,mean} * sigma. pbar_{0,mean} is given by equation 47 of J. L. Quinn 2012
-
-        if self.bayesian_pcorr is True:
-            print "Bayesian - p correction"
-            sigma = (self.qrf + self.urf) / 2
-            pbar = pf_before_corr / sigma
-            self.pf = np.array([])
-            for j in range(len(pbar)):
-                p0 = np.arange(self.p0_step, pbar[j], self.p0_step)
-                rho = np.array([])
-                for i in range(len(p0)):
-                    tau = (sigma[j] ** 2) * 2 * p0[i]
-                    pp0 = pbar[j] * p0[i]
-
-                    rice_distribution = pbar[j] * np.exp(-((pbar[j] ** 2 + p0[i] ** 2) / 2)) * special.iv(0, pp0)
-                    if m.isnan(rice_distribution) is True or m.isinf(rice_distribution) is True:
-                        print "Infinite values encountered. Resulting polarisation may be invalid. " \
-                              "Use the Step function method"
-
-                    rhoi = rice_distribution * tau
-                    rho = np.append(rho, rhoi)
-
-                p0mean = np.average(p0, weights=rho)
-                self.pf = np.append(self.pf,
-                                    p0mean * sigma[j])  # !!!! need to multiply by sigma to get p0 and not p0/bar.
+        self.poldata['theta'], self.poldata['thetar'] = pol_ang(self.poldata['q'].values, self.poldata['u'].values,
+                                                        self.poldata['qr'].values, self.poldata['ur'].values)
 
         # ###### CREATING THE TEXT FILE ###### #
         self.pol_file = raw_input('What do you want to name the polarisation file? ')
+
         try:
             os.remove(self.pol_file + ".pol")
-            os.remove(self.pol_file + ".delta")
-        except:
-            print 'kittens'
+        except OSError:
+            pass
 
-        self._make_pol_file()
-        self._make_delta_file()
-        self._make_plots()
+        self.poldata.to_csv(self.pol_file+".pol", index=False, sep="\t")
 
-        return self.pf, self.prf, self.qf, self.qrf, self.uf, self.urf, self.thetaf, self.thetarf, self.delta_es
+        return self.poldata
 
     def _get_data(self):
         """
@@ -871,7 +811,7 @@ class LinearSpecPol(object):
                     nbr_in_file_name = find_nbr.search(filename[1:]).group()
                     # removing first character as files start with a 1 usually and that messes things up
             except AttributeError:
-                print "Couldn't find a number in this filename - passing"
+                print("Couldn't find a number in this filename - passing")
                 pass
             # The following compares the number in the filename to the number in ls_0 to see if the image
             # correspond to a 0 deg HWRP angle set up.
@@ -895,7 +835,7 @@ class LinearSpecPol(object):
             nbre_sets = len(file_list) / 4
             nbre_sets_remainder = len(file_list) % 4
             assert nbre_sets_remainder == 0, "There should be 4 data files for each image "
-            print "4 Files per images... All good here"
+            print("4 Files per images... All good here")
 
         for i in range(int(nbre_sets)):
             step = i * 4
@@ -918,7 +858,7 @@ class LinearSpecPol(object):
             ls_F3.append(F3)
             ls_F3_r.append(F3_r)
 
-        assert len(wl0) == len(wl1) == len(wl2) == len(wl3), "Wavelength bins not homogenous. This will be an issue."
+        assert len(wl0) == len(wl1) == len(wl2) == len(wl3), "Wavelength bins not homogeneous. This will be an issue."
 
         return ls_F0, ls_F0_r, ls_F1, ls_F1_r, ls_F2, ls_F2_r, ls_F3, ls_F3_r
 
@@ -945,7 +885,7 @@ class LinearSpecPol(object):
             self.wl_bin, fo_bin, fo_bin_r, fe_bin, fe_bin_r = self.wl, fo, fo_r, fe, fe_r
 
         else:
-            print "Binning to ", self.bin_size, "Angstrom"
+            print("Binning to ", self.bin_size, "Angstrom")
             self.wl_bin, fo_bin, fo_bin_r = rebin(self.wl, fo, fo_r, bin_siz=self.bin_size)
             self.wl_bin, fe_bin, fe_bin_r = rebin(self.wl, fe, fe_r, bin_siz=self.bin_size)
 
@@ -953,9 +893,8 @@ class LinearSpecPol(object):
             if check_bin is True:
                 self._check_binning(fo, fe, fo_r, fe_r, fo_bin, fe_bin, fo_bin_r, fe_bin_r)
 
-        # Creating the ordinary ray - extraordinary ray data object
-        data_object = OERay(self.wl_bin, fo_bin, fo_bin_r, fe_bin, fe_bin_r)
-        F, F_r = data_object.norm_flux_diff()  # and calculating the flux difference
+        # Finding flux difference
+        F, F_r = F_from_oeray(fo_bin, fe_bin, fo_bin_r, fe_bin_r)
 
         return self.wl_bin, F, F_r
 
@@ -971,21 +910,22 @@ class LinearSpecPol(object):
         snr_central_wl = (bin_fo[ind_central_wl] + bin_fe[ind_central_wl]) / \
                          np.sqrt(bin_fo_r[ind_central_wl] ** 2 + bin_fe_r[ind_central_wl] ** 2)
 
-        print "\n======== BEFORE BINNING ======"
-        print "MEDIAN SNR "
-        print np.median(snr_not_binned)
+        print("\n======== BEFORE BINNING ======")
+        print("MEDIAN SNR ")
+        print(np.median(snr_not_binned))
 
-        print "CENTRAL SNR at (", self.wl[ind_not_binned_central_wl], " A)"
-        print snr_not_binned_central_wl
+        print("CENTRAL SNR at (", self.wl[ind_not_binned_central_wl], " A)")
+        print(snr_not_binned_central_wl)
 
-        print "======== AFTER BINNING ======"
+        print("======== AFTER BINNING ======")
 
-        print "MEDIAN SNR / EXPECTED "
-        print np.median(snr_binned), np.median(snr_expected)
+        print("MEDIAN SNR / EXPECTED ")
+        print(np.median(snr_binned), np.median(snr_expected))
 
-        print "CENTRAL SNR / EXPECTED (at ", self.wl[ind_not_binned_central_wl], " A)"
-        print snr_central_wl, snr_central_expected
-        print "\n"
+        print("CENTRAL SNR / EXPECTED (at ", self.wl[ind_not_binned_central_wl], " A)")
+        print(snr_central_wl, snr_central_expected)
+        print("\n")
+
 
         if self.snrplot is True:
             plt.plot(self.wl, snr_expected, marker='o', label='Expected')
@@ -1034,7 +974,6 @@ class LinearSpecPol(object):
         # We take our chromatic zero-angles and interpolate them to match the wavlength bins of our data.
         wl2, thetaz = np.loadtxt(zero_angles, unpack=True, usecols=(0, 1))
         theta0 = np.interp(self.wl_bin, wl2, thetaz)
-
         # Now we apply corrections to the P.A
         for t in range(len(q)):
             theta_t = 0.5 * m.atan2(u[t], q[t])
@@ -1057,97 +996,75 @@ class LinearSpecPol(object):
         eq = (0.5 * F0 + 0.5 * F2) * 100  # in percent
         eu = (0.5 * F1 + 0.5 * F3) * 100
         delta_e = eq - eu
-        stdv_dequ = []
-        try:
-            for i in xrange(len(self.wl_bin)):
-                if self.wl_bin[i] > self.e_min_wl:
-                    dequ = eq[i] - eu[i]
-                    stdv_dequ.append(dequ)
-        except IndexError:
-            dequ = eq - eu
-            stdv_dequ.append(dequ)
 
-        stdv_e = np.std(stdv_dequ)
-        avg_e = np.average(stdv_dequ)
+        return pf, p_r * 100, qf, q_r * 100, uf, u_r * 100, theta, theta_r, delta_e
 
-        return pf, p_r * 100, qf, q_r * 100, uf, u_r * 100, theta, theta_r, delta_e, avg_e, stdv_e
+    def make_plots(self):
+        if self.poldata is None:
+            return "You should run the `calculate`method before trying to make plots "
 
-    def _make_pol_file(self):
-        for l in xrange(len(self.wl_bin)):
-            with open(self.pol_file + ".pol", 'a') as pol_f:
-                pol_f.write(str(self.wl_bin[l]) + '    ' + str(self.pf[l]) + '    ' + str(self.prf[l]) + '    ' + str(
-                        self.qf[l])
-                            + '    ' + str(self.qrf[l]) + '    ' + str(self.uf[l]) + '    ' + str(self.urf[l]) + '    '
-                            + str(self.thetaf[l]) + '    ' + str(self.thetarf[l]) + '\n')
+        wavelength = self.poldata['wl'].values
+        p = self.poldata['p'].values
+        pr = self.poldata['pr'].values
+        q = self.poldata['q'].values
+        qr = self.poldata['qr'].values
+        u = self.poldata['u'].values
+        ur = self.poldata['ur'].values
+        theta = self.poldata['theta'].values
+        thetar = self.poldata['thetar'].values
 
-    def _make_delta_file(self):
-        # writing the file containing delta epsilon
-        # because delta_es is a list of lists the file write out is a bit convoluted
-        with open(self.pol_file + ".delta", 'a') as delta_f:
-            if len(self.delta_es) > 1:  # Case were I have more than one list in delta_es if mroe than one set of data
-                for deltas in zip(self.wl_bin,
-                                  *self.delta_es):  # first I am zipping my lists. The * to unpack unknwon number of lists
-                    to_write = str(
-                            deltas[0])  # I am creating a variable to store my output string, deltas[0] is the wvlgth
-                    for delta in deltas[1:]:  # then iterating over the values in each column
-                        to_write += '    ' + str(delta)  # to add them onto the string
-                    to_write += '\n'  # and when that's done I add the end of line character
-                    delta_f.write(to_write)  # and finally write it into my file
-            else:  # if I have only one list in delta_es then zip is going to fail and I can just do the following
-                for wl, delta in zip(self.wl_bin, self.delta_es[0]):  # first I am zipping my lists
-                    delta_f.write(str(wl) + '    ' + str(delta) + '\n')
-
-    def _make_plots(self):
         f, axarr = plt.subplots(5, 1, figsize=(8, 8), sharex=True)
         plt.subplots_adjust(hspace=0)
 
         # First axis is p
-        axarr[0].errorbar(self.wl_bin, self.pf, yerr=self.prf, c='#D92F2F')
+        axarr[0].errorbar(wavelength, p,yerr=pr, c='#D92F2F')
         axarr[0].axhline(0, 0, ls='--', c='k')
         pmax = -1000
-        for i in range(len(self.wl_bin)):
-            if self.wl_bin[i] > 4500 and self.pf[i] > pmax:
-                pmax = self.pf[i]
+        for i in range(len(wavelength)):
+            if wavelength[i] > 4500 and p[i] > pmax:
+                pmax = p[i]
 
         axarr[0].set_ylim([-0.1, pmax + 0.4])
         axarr[0].set_ylabel('p(%)', fontsize=14)
 
         # Then q
-        axarr[1].errorbar(self.wl_bin, self.qf, yerr=self.qrf, c='#D92F2F')
+        axarr[1].errorbar(wavelength, q, yerr=qr, c='#D92F2F')
         axarr[1].axhline(0, 0, ls='--', c='k')
         qmax = -1000
         qmin = 1000
-        for i in range(len(self.wl_bin)):
-            if self.wl_bin[i] > 4500 and self.qf[i] > qmax:
-                qmax = self.qf[i]
-            if self.wl_bin[i] > 4500 and self.qf[i] < qmin:
-                qmin = self.qf[i]
+        for i in range(len(wavelength)):
+            if wavelength[i] > 4500 and q[i] > qmax:
+                qmax = q[i]
+            if wavelength[i] > 4500 and q[i] < qmin:
+                qmin = q[i]
         axarr[1].set_ylim([qmin - 0.3, qmax + 0.3])
         axarr[1].set_ylabel('q(%)', fontsize=14)
 
         # And u
-        axarr[2].errorbar(self.wl_bin, self.uf, yerr=self.urf, c='#D92F2F')
+        axarr[2].errorbar(wavelength, u, yerr=ur, c='#D92F2F')
         axarr[2].axhline(0, 0, ls='--', c='k')
         umax = -1000
         umin = 1000
-        for i in range(len(self.wl_bin)):
-            if self.wl_bin[i] > 4500 and self.uf[i] > umax:
-                umax = self.uf[i]
-            if self.wl_bin[i] > 4500 and self.uf[i] < umin:
-                umin = self.uf[i]
+        for i in range(len(wavelength)):
+            if wavelength[i] > 4500 and u[i] > umax:
+                umax = u[i]
+            if wavelength[i] > 4500 and u[i] < umin:
+                umin = u[i]
         axarr[2].set_ylim([umin - 0.3, umax + 0.3])
         axarr[2].set_ylabel('u(%)', fontsize=14)
 
         # P.A
-        axarr[3].errorbar(self.wl_bin, self.thetaf, yerr=self.thetarf, c='#D92F2F')
+        axarr[3].errorbar(wavelength, theta, yerr=thetar, c='#D92F2F')
         axarr[3].axhline(0, 0, ls='--', c='k')
         axarr[3].set_ylim([-0, 180])
         axarr[3].set_ylabel('theta', fontsize=14)
 
         # And finally the Delta epsilons of each data set.
-        for i in range(len(self.delta_es)):
-            axarr[4].plot(self.wl_bin, self.delta_es[i], alpha=0.8)
-            print "Average Delta epsilon =", self.avg_es[i], "STDV =", self.stdv_es[i]
+        delta_cols = [col for col in self.poldata.columns if 'delta' in col]
+        for column in delta_cols:
+            axarr[4].plot(wavelength, self.poldata[column], alpha=0.8)
+            print("MEAN Delta epsilon =", self.poldata[column].values.mean(),
+                  "STDV =", self.poldata[column].values.std() )
 
         axarr[4].set_ylabel(r"$\Delta \epsilon", fontsize=16)
         axarr[4].set_ylim([-4.0, 4.0])
@@ -1156,14 +1073,14 @@ class LinearSpecPol(object):
         save_cond = raw_input("do you want to save the plot?(Y/n): ")
         if save_cond == "y" or save_cond == "Y" or save_cond == "":
             plt.savefig(self.pol_file + ".png")
-            print "Plot saved"
+            print("Plot saved")
         else:
-            print "Plot not saved"
+            print("Plot not saved")
 
         plt.show()
 
 
-# ################## FOR BACKWARDS COMPATIBILITY THE FOLLOWING IS KEPT IN DATRED.PY ##########################
+# ################## FOR BACKWARDS COMPATIBILITY THE FOLLOWING IS KEPT IN DATRED.PY UNTOUCHED ##########################
 # ### copies of flux_diff_from_file() and check_binning to go into lin_specpol ######
 
 
@@ -1190,7 +1107,7 @@ def flux_diff_from_file(files, ordinary_ray, extra_ray, bin_size, check_bin=Fals
         wl_bin, fo_bin, fo_bin_r, fe_bin, fe_bin_r = wl, fo, fo_r, fe, fe_r
 
     else:
-        print "Binning to ", bin_size, "Angstrom"
+        print("Binning to ", bin_size, "Angstrom")
         wl_bin, fo_bin, fo_bin_r = rebin(wl, fo, fo_r, bin_siz=bin_size)
         wl_bin, fe_bin, fe_bin_r = rebin(wl, fe, fe_r, bin_siz=bin_size)
 
@@ -1217,21 +1134,21 @@ def check_binning(wl, fo, fe, fo_r, fe_r, bin_wl, bin_fo, bin_fe, bin_fo_r, bin_
     snr_central_wl = (bin_fo[ind_central_wl] + bin_fe[ind_central_wl]) / \
                      np.sqrt(bin_fo_r[ind_central_wl] ** 2 + bin_fe_r[ind_central_wl] ** 2)
 
-    print "\n======== BEFORE BINNING ======"
-    print "MEDIAN SNR "
-    print np.median(snr_not_binned)
+    print("\n======== BEFORE BINNING ======")
+    print("MEDIAN SNR ")
+    print(np.median(snr_not_binned))
 
-    print "CENTRAL SNR at (", wl[ind_not_binned_central_wl], " A)"
-    print snr_not_binned_central_wl
+    print("CENTRAL SNR at (", wl[ind_not_binned_central_wl], " A)")
+    print(snr_not_binned_central_wl)
 
-    print "======== AFTER BINNING ======"
+    print("======== AFTER BINNING ======")
 
-    print "MEDIAN SNR / EXPECTED "
-    print np.median(snr_binned), np.median(snr_expected)
+    print("MEDIAN SNR / EXPECTED ")
+    print(np.median(snr_binned), np.median(snr_expected))
 
-    print "CENTRAL SNR / EXPECTED (at ", wl[ind_not_binned_central_wl], " A)"
-    print snr_central_wl, snr_central_expected
-    print "\n"
+    print("CENTRAL SNR / EXPECTED (at ", wl[ind_not_binned_central_wl], " A)")
+    print(snr_central_wl, snr_central_expected)
+    print("\n")
 
     if snrplot is True:
         plt.plot(wl, snr_expected, marker='o', label='Expected')
@@ -1346,7 +1263,7 @@ def lin_specpol(oray='ap2', hwrpafile='hwrpangles.txt',
                     nbr_in_file_name = find_nbr.search(filename[1:]).group()
                     # removing first character as files start with a 1 usually and that messes things up
             except AttributeError:
-                print "Couldn't find a number in this filename - passing"
+                print("Couldn't find a number in this filename - passing")
                 pass
             # The following compares the number in the filename to the number in ls_0 to see if the image
             # correspond to a 0 deg HWRP angle set up.
@@ -1370,7 +1287,7 @@ def lin_specpol(oray='ap2', hwrpafile='hwrpangles.txt',
             nbre_sets = len(file_list) / 4
             nbre_sets_remainder = len(file_list) % 4
             assert nbre_sets_remainder == 0, "There should be 4 data files for each image "
-            print "4 Files per images... All good here"
+            print("4 Files per images... All good here")
 
         for i in range(int(nbre_sets)):
             step = i * 4
@@ -1557,7 +1474,7 @@ def lin_specpol(oray='ap2', hwrpafile='hwrpangles.txt',
 
     #  If bayesian_pcorr is False, P will be debiased as in Wang et al. 1997 using a step function
     if bayesian_pcorr is False:
-        print "Step Func - p correction"
+        print("Step Func - p correction")
         pfinal = np.array([])
         for ind in range(len(pf)):
             condition = pf[ind] - prf[ind]
@@ -1572,7 +1489,7 @@ def lin_specpol(oray='ap2', hwrpafile='hwrpangles.txt',
     #  the correceted p is pbar_{0,mean} * sigma. pbar_{0,mean} is given by equation 47 of J. L. Quinn 2012
 
     if bayesian_pcorr is True:
-        print "Bayesian - p correction"
+        print("Bayesian - p correction")
         sigma = (qrf + urf) / 2
         pbar = pf / sigma
         pfinal = np.array([])
@@ -1588,7 +1505,7 @@ def lin_specpol(oray='ap2', hwrpafile='hwrpangles.txt',
                 if m.isnan(rice_distribution) is True or m.isinf(rice_distribution) is True:
                     # print pf[j], sigma[j], pbar[j], p0[i-1], pbar[j]*p0[i-1]
                     # print pf[j], sigma[j], pbar[j], p0[i], pp0
-                    print "Infinite values encountered. Resulting polarisation may be invalid. Use the Step function method"
+                    print("Infinite values encountered. Resulting polarisation may be invalid. Use the Step function method")
 
                     # return
                 rhoi = rice_distribution * tau
@@ -1603,7 +1520,7 @@ def lin_specpol(oray='ap2', hwrpafile='hwrpangles.txt',
         os.remove(pol_file + ".pol")
         os.remove(pol_file + ".delta")
     except:
-        print 'kittens'
+        print('kittens')
 
     for l in xrange(len(wl)):
         with open(pol_file + ".pol", 'a') as pol_f:
@@ -1634,7 +1551,7 @@ def lin_specpol(oray='ap2', hwrpafile='hwrpangles.txt',
     plt.subplots_adjust(hspace=0)
 
     # First axis is p
-    print wl
+    print(wl)
     axarr[0].errorbar(wl, pf, yerr=prf, c='#D92F2F')
     axarr[0].axhline(0, 0, ls='--', c='k')
     pmax = -1000
@@ -1680,7 +1597,7 @@ def lin_specpol(oray='ap2', hwrpafile='hwrpangles.txt',
     # And finally the Delta epsilons of each data set.
     for i in range(len(delta_es)):
         axarr[4].plot(wl, delta_es[i], alpha=0.8)
-        print "Average Delta epsilon =", avg_es[i], "STDV =", stdv_es[i]
+        print("Average Delta epsilon =", avg_es[i], "STDV =", stdv_es[i])
 
     axarr[4].set_ylabel(r"$\Delta \epsilon", fontsize=16)
     axarr[4].set_ylim([-4.0, 4.0])
@@ -1689,9 +1606,9 @@ def lin_specpol(oray='ap2', hwrpafile='hwrpangles.txt',
     save_cond = raw_input("do you want to save the plot?(Y/n): ")
     if save_cond == "y" or save_cond == "Y" or save_cond == "":
         plt.savefig(pol_file + ".png")
-        print "Plot saved"
+        print("Plot saved")
     else:
-        print "Plot not saved"
+        print("Plot not saved")
 
     plt.show()
 
@@ -1776,7 +1693,7 @@ def circ_specpol(oray='ap2', hwrpafile='hwrpangles_v.txt', bin_size=None, e_min_
                     nbr_in_file_name = find_nbr.search(filename[1:]).group()
                     # removing first character as files start with a 1 usually and that messes things up
             except AttributeError:
-                print "Couldn't find a number in this filename - passing"
+                print("Couldn't find a number in this filename - passing")
                 pass
 
             # This condition is related to the naming convention I have adopted.
@@ -1887,7 +1804,7 @@ def circ_specpol(oray='ap2', hwrpafile='hwrpangles_v.txt', bin_size=None, e_min_
                         bins_w[n + 1] += weights[i] * frac_overlap
 
                     except IndexError:
-                        print"Index Error at ", wl[i]
+                        print("Index Error at ", wl[i])
                         pass
 
                 elif wl[i] > edge:
@@ -1899,7 +1816,7 @@ def circ_specpol(oray='ap2', hwrpafile='hwrpangles_v.txt', bin_size=None, e_min_
                         bins_w[n + 1] += weights[i] * (1 - frac_overlap)
 
                     except IndexError:
-                        print"Index Error at ", wl[i]
+                        print("Index Error at ", wl[i])
                         pass
 
             else:
@@ -1907,12 +1824,12 @@ def circ_specpol(oray='ap2', hwrpafile='hwrpangles_v.txt', bin_size=None, e_min_
                     bins_f[n] += f[i] * weights[i]
                     bins_w[n] += weights[i]
                 except IndexError:
-                    print"Index Error at ", wl[i]
+                    print("Index Error at ", wl[i])
                     pass
 
         for i in range(len(bin_centers)):
             if bins_w[i] == 0.0:
-                print bin_centers[i], bins_w[i]
+                print(bin_centers[i], bins_w[i])
 
         bins_f[:-1] /= bins_w[:-1]  # normalise weighted values by sum of weights to get weighted average
         bins_err = np.sqrt(1 / bins_w[:-1])
@@ -2044,7 +1961,7 @@ def circ_specpol(oray='ap2', hwrpafile='hwrpangles_v.txt', bin_size=None, e_min_
     stdv_eps = []
 
     for i in range(len(ls_fo0)):
-        print "Set ", i + 1
+        print("Set ", i + 1)
         snr_nb0 = np.array((ls_fo0[i] + ls_fe0[i]) / np.sqrt(ls_fo0_err[i] ** 2 + ls_fe0_err[i] ** 2))  # SNR not binned
         snr_nb1 = np.array((ls_fo1[i] + ls_fe1[i]) / np.sqrt(ls_fo1_err[i] ** 2 + ls_fe1_err[i] ** 2))
 
@@ -2058,14 +1975,14 @@ def circ_specpol(oray='ap2', hwrpafile='hwrpangles_v.txt', bin_size=None, e_min_
         snr_nbc1 = snr_nb1[ind_central_wl]
 
         if bin_size is not None:
-            print "Rebinning to ", str(bin_size), " Angstrom"
+            print("Rebinning to ", str(bin_size), " Angstrom")
             bin_wl, bin_fo0, bin_fo0_err = rebin(wl, ls_fo0[i], ls_fo0_err[i])
             bin_wl, bin_fe0, bin_fe0_err = rebin(wl, ls_fe0[i], ls_fe0_err[i])
             bin_wl, bin_fo1, bin_fo1_err = rebin(wl, ls_fo1[i], ls_fo1_err[i])
             bin_wl, bin_fe1, bin_fe1_err = rebin(wl, ls_fe1[i], ls_fe1_err[i])
 
         elif bin_size is None:
-            print "Not Rebinning"
+            print("Not Rebinning")
             bin_wl, bin_fo0, bin_fo0_err = wl, ls_fo0[i], ls_fo0_err[i]
             bin_wl, bin_fe0, bin_fe0_err = wl, ls_fe0[i], ls_fe0_err[i]
             bin_wl, bin_fo1, bin_fo1_err = wl, ls_fo1[i], ls_fo1_err[i]
@@ -2084,7 +2001,7 @@ def circ_specpol(oray='ap2', hwrpafile='hwrpangles_v.txt', bin_size=None, e_min_
         snr_c1 = (bin_fo1[ind_central_wl] + bin_fe1[ind_central_wl]) / np.sqrt(
                 bin_fo1_err[ind_central_wl] ** 2 + bin_fe1_err[ind_central_wl] ** 2)
 
-        print "\n"
+        print("\n")
 
         snr0 = (bin_fo0 + bin_fe0) / np.sqrt(bin_fo0_err ** 2 + bin_fe0_err ** 2)
         # snr1 = (bin_fo1 + bin_fe1)/np.sqrt(bin_fo1_err**2 + bin_fe1_err**2)
@@ -2092,12 +2009,12 @@ def circ_specpol(oray='ap2', hwrpafile='hwrpangles_v.txt', bin_size=None, e_min_
         snr_c_exp0 = snr_nbc0 * np.sqrt(bin_size / (wl[1] - wl[0]))
         snr_c_exp1 = snr_nbc1 * np.sqrt(bin_size / (wl[1] - wl[0]))
 
-        print "--------- 0 ------ 22.5 ----- 45 ----- 67.5 -------- (CNTR WL ", int(bin_wl[ind_central_wl]), ")"
-        print "CNTR WL THEORETICAL: ", int(snr_c_exp0), int(snr_c_exp1)
-        print "CNTR WL CALCULATED:  ", int(snr_c0), int(snr_c1)
-        print "CNTR WL RESIDUALS (EXPECTED SNR - OBTAINED)"
-        print snr_c_exp0 - snr_c0, snr_c_exp1 - snr_c1
-        print "\n"
+        print("--------- 0 ------ 22.5 ----- 45 ----- 67.5 -------- (CNTR WL ", int(bin_wl[ind_central_wl]), ")")
+        print("CNTR WL THEORETICAL: ", int(snr_c_exp0), int(snr_c_exp1))
+        print("CNTR WL CALCULATED:  ", int(snr_c0), int(snr_c1))
+        print("CNTR WL RESIDUALS (EXPECTED SNR - OBTAINED)")
+        print(snr_c_exp0 - snr_c0, snr_c_exp1 - snr_c1)
+        print("\n")
 
         plt.scatter(wl, snr_exp0, c='k', marker='.', label="expected SN 0 deg")
         # plt.scatter(wl, snr_exp1, c='m', marker='.')
@@ -2109,7 +2026,7 @@ def circ_specpol(oray='ap2', hwrpafile='hwrpangles_v.txt', bin_size=None, e_min_
         plt.show()
 
     for i in range(len(ls_fo0)):
-        print "Rebinning to ", str(bin_size), " Angstrom"
+        print("Rebinning to ", str(bin_size), " Angstrom")
         bin_wl, bin_fo0, bin_fo0_err = rebin(wl, ls_fo0[i], ls_fo0_err[i])
         bin_wl, bin_fe0, bin_fe0_err = rebin(wl, ls_fe0[i], ls_fe0_err[i])
         bin_wl, bin_fo1, bin_fo1_err = rebin(wl, ls_fo1[i], ls_fo1_err[i])
@@ -2147,7 +2064,7 @@ def circ_specpol(oray='ap2', hwrpafile='hwrpangles_v.txt', bin_size=None, e_min_
     try:
         os.remove(pol_file + '.pol')
     except:
-        print 'kittens'
+        print('kittens')
     for l in xrange(len(bin_wl)):
         with open(pol_file + '.pol', 'a') as pol_f:
             pol_f.write(str(bin_wl[l]) + '    ' + str(vf[l]) + '    ' + str(vf_err[l]) + '\n')
@@ -2175,7 +2092,7 @@ def circ_specpol(oray='ap2', hwrpafile='hwrpangles_v.txt', bin_size=None, e_min_
     # And then the Delta epsilons of each data set.
     for i in range(len(ls_eps)):
         axarr[1].plot(bin_wl, ls_eps[i], alpha=0.8)
-        print "Average Delta epsilon =", avg_eps[i], "STDV =", stdv_eps[i]
+        print("Average Delta epsilon =", avg_eps[i], "STDV =", stdv_eps[i])
 
     axarr[1].set_ylabel(r"$\Delta \epsilon", fontsize=16)
     axarr[1].set_ylim([-6, 0])
@@ -2184,9 +2101,9 @@ def circ_specpol(oray='ap2', hwrpafile='hwrpangles_v.txt', bin_size=None, e_min_
     save_cond = raw_input("do you want to save the plot?(Y/n): ")
     if save_cond == "y" or save_cond == "Y" or save_cond == "":
         plt.savefig(pol_file + ".png")
-        print "Plot saved"
+        print("Plot saved")
     else:
-        print "Plot not saved"
+        print("Plot not saved")
 
     plt.show()
 
@@ -2315,7 +2232,7 @@ def lin_vband(oray='ap2', hwrpafile='hwrpangles.txt'):
                 nbr_in_file_name = find_nbr.search(filename[1:]).group()
                 # removing first character as files start with a 1 usually and that messes things up
         except AttributeError:
-            print "Couldn't find a number in this filename - passing"
+            print("Couldn't find a number in this filename - passing")
             pass
 
         if 'dSC' in filename and 'c_' not in filename and '.fits' not in filename:
@@ -2423,14 +2340,14 @@ def lin_vband(oray='ap2', hwrpafile='hwrpangles.txt'):
                                                                            o1_r, e1_r, o2_r, e2_r, o3_r, e3_r, wl_v)
         if theta_v < 0:
             theta_v = 180 + theta_v
-    print "PAVG         PAVG_err"
-    print pavg, pavg_r
-    print "QAVG         QAVG_err"
-    print qavg, qavg_r
-    print "UAVG         UAVG_err"
-    print uavg, uavg_r
-    print "P.A          P.A_err"
-    print theta_v, theta_vr
+    print("PAVG         PAVG_err")
+    print(pavg, pavg_r)
+    print("QAVG         QAVG_err")
+    print(qavg, qavg_r)
+    print("UAVG         UAVG_err")
+    print(uavg, uavg_r)
+    print("P.A          P.A_err")
+    print(theta_v, theta_vr)
     return pavg, pavg_r, qavg, qavg_r, uavg, uavg_r, theta_v, theta_vr
 
 
@@ -2473,7 +2390,7 @@ def flux_spectrum():
             try:
                 os.remove(output)
             except:
-                print "kittens"
+                print("kittens")
         sum_flux = 0
         error_sqrd = 0
         for i in xrange(len(flux)):
