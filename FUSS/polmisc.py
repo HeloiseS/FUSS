@@ -58,7 +58,8 @@ Methods:
     - qu_plt()
 
 """
-
+from __future__ import division
+from __future__ import print_function
 import numpy as np
 import matplotlib.pyplot as plt
 import math as m
@@ -69,6 +70,11 @@ import os
 from astropy.io import fits
 import datetime as dt
 from FUSS import isp as isp
+import sys
+
+if sys.version_info.major < 3:
+    range = xrange
+    input = raw_input
 
 
 # ################## FUNCTIONS ###################### FUNCTIONS #################### FUNCTIONS ################# #
@@ -221,54 +227,7 @@ def dopcor_file(filename, z):
         f.write(n_line)
         i = i + 1
 
-    print output + ' created'
-
-
-def ylim_def(wl, f, wlmin=4500, wlmax=9500):
-    # TODO: Do I even use this?? Can I make it less convoluted?
-    '''
-    YLIM_DEF finds appropriate y limits for a spectrum. Look at values between a given range (Default: 4500-9500A) where
-    we don't expect few order of magnitudes discrepancies like we see sometimes at the extremeties of the spectrum, then
-    find the max and min value then define ymax and ymin.
-    :param wl: Array containing the wavelengths
-    :param f: Array containing the flux
-    :param wlmin: Start of wavelength range where we search for min and max.
-    :param wlmax: End of wavelength range where we search for min and max.
-    :return: ymin (defined as flux min - 2*flux min) and ymax (defined as flux max + flux max/10)
-    '''
-
-    fmax = -100000
-    fmin = 1000
-    for i in xrange(len(wl)):
-        if wl[i] < wlmax and wl[i] > wlmin:
-            if f[i] < fmin:
-                fmin = f[i]
-                print fmin
-            elif f[i] > fmax:
-                fmax = f[i]
-                print fmax
-
-    # These tweaks to make the y limit okay were determined through testing. May not always
-    # be appropriate and might need fixing later.
-    if fmin > 0 and fmin < 1:
-        ymin = fmin - 1.2 * fmin
-    elif fmin > 0 and fmin > 1:
-        ymin = fmin - fmin / 5
-    elif fmin < 0 and fmin > -1:
-        ymin = fmin + 1.2 * fmin
-    elif fmin < 0 and fmin < -1:
-        ymin = fmin + fmin / 5
-
-    if fmax > 0 and fmax < 1:
-        ymax = fmax + 1.2 * fmax
-    elif fmax > 0 and fmax > 1:
-        ymax = fmax + fmax / 5
-    elif fmax < 0 and fmax > -1:
-        ymax = fmax - 1.2 * fmax
-    elif fmax < 0 and fmin < -1:
-        ymax = fmax - fmax / 10
-
-    return ymin, ymax
+    print(output + ' created')
 
 
 def rot_data(q, u, theta):
@@ -336,48 +295,48 @@ def ep_date():
 
     # ####### Functions used by ep_date ########## #
     def date_input():
-        yr = raw_input("Year: ")
-        month = raw_input("Month: ")
-        day = raw_input("Day: ")
+        yr = input("Year: ")
+        month = input("Month: ")
+        day = input("Day: ")
         date = dt.date(int(yr), int(month), int(day))
         return date
 
     def date_from_epoch():
-        ep = dt.timedelta(float(raw_input("\n What epoch (in days) would you like to know the date for: ")))
-        print '\nDate at epoch ' + str(ep) + ' days: '
-        print vmax + ep
+        ep = dt.timedelta(float(input("\n What epoch (in days) would you like to know the date for: ")))
+        print('\nDate at epoch ' + str(ep) + ' days: ')
+        print(vmax + ep)
         return vmax + ep
 
     def ep_from_dates():
-        print "\nDate of epoch you want in days"
+        print("\nDate of epoch you want in days")
         date_ep = date_input()
         ep = date_ep - vmax
-        print '\nEpoch:'
-        print ep
+        print('\nEpoch:')
+        print(ep)
         return ep
 
     # ############### MAIN ##################### #
-    print "\nDate at V-band max"
+    print("\nDate at V-band max")
     vmax = date_input()
 
-    print "\n What do you want to do? \n (1) Get epoch in days. Inputs: Date of epoch" \
+    print("\n What do you want to do? \n (1) Get epoch in days. Inputs: Date of epoch" \
           "\n (2) Get date for an epoch in days. Inputs: Epoch in days (can be negative)" \
           "\n (3) Update the V-band max date" \
-          "\n (4) Exit"
+          "\n (4) Exit")
 
-    to_do = raw_input("#> ")
+    to_do = input("#> ")
     while to_do != '4':
         if to_do == '1':
             ep_from_dates()
         if to_do == '2':
             date_from_epoch()
         if to_do == '3':
-            print "\nDate at V-band max"
+            print("\nDate at V-band max")
             vmax = date_input()
         if to_do != '1' and to_do != '2' and to_do != '3' and to_do != '4':
-            print "Must choose option 1, 2, 3 or 4"
+            print("Must choose option 1, 2, 3 or 4")
 
-        to_do = raw_input("#> ")
+        to_do = input("#> ")
 
     return "Good Bye"
 
@@ -390,14 +349,14 @@ def vel():
     """
     cont = 'y'
     while cont == 'y' or cont == '':
-        l_obs = float(raw_input('What is the observed wavelength: '))
-        l_emit = float(raw_input('What is the rest wavelength: '))
+        l_obs = float(input('What is the observed wavelength: '))
+        l_emit = float(input('What is the rest wavelength: '))
 
         c = 299792.458  # Speed of light in km/s
 
         v = ((l_obs - l_emit) / l_emit) * c
-        print v
-        cont = raw_input('Continue?(y/n): ')
+        print(v)
+        cont = input('Continue?(y/n): ')
 
 
 #  #################################################################################  #
@@ -534,9 +493,9 @@ class PolData(object):
         self.a0 = None
         self.a0r = None
 
-        print " ==== PolData - instance: " + self.name + " ===="
-        print "Polarisation data initialised. If you want to add Stokes I use add_flux_data(). " \
-              "To find ISP use find_isp(). \n"
+        print(" ==== PolData - instance: " + self.name + " ====")
+        print("Polarisation data initialised. If you want to add Stokes I use add_flux_data(). " \
+              "To find ISP use find_isp(). \n")
 
     def add_flux_data(self, filename, wlmin=None, wlmax=1000000, err=False, scale=False):
         """
@@ -559,8 +518,8 @@ class PolData(object):
         if err is True:
             self.fr = flux[2]
 
-        print " ==== PolData - instance: " + self.name + " ===="
-        print "Flux spectrum added."
+        print(" ==== PolData - instance: " + self.name + " ====")
+        print("Flux spectrum added.")
 
     def flu_n_pol(self, save=False):
         """
@@ -592,7 +551,7 @@ class PolData(object):
         try:
             f_plot.errorbar(self.wlf, self.f, yerr=self.fr, color='k', alpha=0.5, lw=1.5, capsize=0, ecolor='grey')
         except:
-            print 'Flux attributes not defined'
+            print('Flux attributes not defined')
 
         p_plot.set_ylim(ylim_def(self.wlp, self.p, wlmin=4700))
         p_plot.set_ylabel('p (%)')
@@ -612,7 +571,7 @@ class PolData(object):
             f_plot.set_ylabel('Flux')
             f_plot.set_xlabel('Wavelength (Ang)', fontsize=14)
         except:
-            print 'Flux attributes not defined'
+            print('Flux attributes not defined')
 
         p_plot.xaxis.set_visible(False)
         q_plot.xaxis.set_visible(False)
@@ -664,11 +623,11 @@ class PolData(object):
         if self.aisp < 0:
             self.aisp = 180 + self.aisp  # Making sure P.A range is 0-180 deg
 
-        print " ==== PolData - instance: " + self.name + " ===="
-        print "ISP found: \n qisp = " + str(self.qisp) + " +/- " + str(self.qispr) \
+        print(" ==== PolData - instance: " + self.name + " ====")
+        print("ISP found: \n qisp = " + str(self.qisp) + " +/- " + str(self.qispr) \
               + "\n usip = " + str(self.uisp) + " +/- " + str(self.uispr) \
               + "\n pisp = " + str(self.pisp) + " +/- " + str(self.pispr) \
-              + "\n P.A isp = " + str(self.aisp) + " +/- " + str(self.aispr)
+              + "\n P.A isp = " + str(self.aisp) + " +/- " + str(self.aispr))
         return self.qisp, self.qispr, self.uisp, self.uispr
 
     def add_isp(self, constisp_params = None, linearisp_params = None):
@@ -707,11 +666,11 @@ class PolData(object):
             if self.aisp < 0:
                 self.aisp = 180 + self.aisp  # Making sure P.A range is 0-180 deg
 
-            print " ==== PolData - instance: " + self.name + " ===="
-            print "ISP Added: \n qisp = " + str(self.qisp) + " +/- " + str(self.qispr) \
+            print(" ==== PolData - instance: " + self.name + " ====")
+            print("ISP Added: \n qisp = " + str(self.qisp) + " +/- " + str(self.qispr) \
                   + "\n usip = " + str(self.uisp) + " +/- " + str(self.uispr) \
                   + "\n pisp = " + str(self.pisp) + " +/- " + str(self.pispr) \
-                  + "\n P.A isp = " + str(self.aisp) + " +/- " + str(self.aispr) + "\n"
+                  + "\n P.A isp = " + str(self.aisp) + " +/- " + str(self.aispr) + "\n")
             self.gradq = None # this will be used as a condition for the method of isp removal in rmv_isp
         elif constisp_params is None:
             self.gradq, self.constq, self.gradu, self.constu, self.cov = linearisp_params
@@ -848,10 +807,10 @@ class PolData(object):
         odr.set_job(fit_type=0)  # fit_type = 0 => explicit ODR.
         output = odr.run()
 
-        print " ==== QUplot - instance: " + self.name + " ===="
-        print "Dom. Axis = a*x + b"
-        print "a = " + str(output.beta[1]) + " +/- " + str(output.sd_beta[1])
-        print "b = " + str(output.beta[0]) + " +/- " + str(output.sd_beta[0]) + "\n"
+        print(" ==== QUplot - instance: " + self.name + " ====")
+        print("Dom. Axis = a*x + b")
+        print("a = " + str(output.beta[1]) + " +/- " + str(output.sd_beta[1]))
+        print("b = " + str(output.beta[0]) + " +/- " + str(output.sd_beta[0]) + "\n")
 
         u_n = func(output.beta, q_n)  # Based on fit, get the u values for each q
 
@@ -888,7 +847,7 @@ class PolData(object):
             # Defining the min and max VELOCITIES, which are going to be the beginning and end of the colour map
             velmin = min(vel)
             velmax = max(vel)
-            print velmin, velmax
+            print(velmin, velmax)
             sc = qu.scatter(q_crop, u_crop, s=100,
                             vmin=velmin, vmax=velmax,
                             c=vel, marker=marker,
