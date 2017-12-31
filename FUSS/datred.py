@@ -22,31 +22,11 @@ sort_red()
     Creates back-up of the compressed files, uncompresses them, sorts them and re-names them according to the naming
     convention required to use with my .cl files during data reduction in IRAF. Returns: None
 
-info()
-    Creates a text file containing useful information on the calibration and data files. Must use in folder containing
-    the uncompressed FITS files. Returns: None
--> Output File Format: Filename, ESO label, Retarder Plate Angle, Exposure time,Airmass, Grism, Bin, number of Pixels,
-1/Gain, Read Out Noise, Date.
-
-hwrpangles()
-    Creates the file used by lin_specpol to know which images correspond to which HWRP angle. It creates separate file
-    for the CCSN, zero pol std, and polarised std. The output files are made of 4 columns containing the numbers of
-    images corresponding to the 0, 22.5, 45 and 67.5 degree retarder plate angles. 1 set per line.
-
-lin_specpol():
-    Calculates the Stokes parameters and P.A of a data set and writes them out in a text file. Also produces
-    a plot showing p, q, u, P.A and Delta epsilon_q and Delta epsilon_u. The plots is not automatically saved.
-
-circ_specpol():
-    Calculates the circular polarisation v and the delta epsilon. Plot not automatically saved.
-
-flux_spectrum():
-    Combines all the flux calibrated apertures to create the flux spectrum.
 """
 # TODO: Update above info (out of date)
-# TODO: Make SpecPol Class that LinearSpecPol and CircularSpecPol can inherit from
 # TODO: Comments and docstrings when finished changing architecture of damn code.
 # TODO: tests!!!???
+
 from __future__ import division
 from __future__ import print_function
 import os
@@ -374,7 +354,8 @@ class MetaData(object):
                                if 'fits' in filename and 'ms' not in filename
                                and 'dSCIENCE' not in filename and 'cal' not in filename])
 
-        self.info = pd.DataFrame(columns = ['Flag', 'Filename', 'ESO label', 'Angle', 'Exp. Time', 'Airmass', '1/gain',
+        self.info = pd.DataFrame(columns = ['Flag', 'Filename', 'ESO label', 'Angle', 'Pol. Type',
+                                            'Exp. Time', 'Airmass', '1/gain',
                                             'RON', 'Grism', 'Bin', 'Date'])
 
         self._read_headers()  # read headers and fills the dataframce
@@ -442,18 +423,23 @@ class MetaData(object):
             except KeyError:
                 grism = 'None'
             self.info.loc[i,'Grism'] = grism
-
+            poltype = None
             try:
                 angle = hdulist[0].header['HIERARCH ESO INS RETA2 ROT']
+                poltype = 'lin'
             except KeyError:
                 try:
                     angle = hdulist[0].header['HIERARCH ESO INS RETA2 POSANG']
+                    poltype = 'lin'
                 except KeyError:
                     try:
-                        angle = str(hdulist[0].header['HIERARCH ESO INS RETA4 ROT']) + '*'
+                        angle = str(hdulist[0].header['HIERARCH ESO INS RETA4 ROT'])
+                        poltype = 'circ'
                     except KeyError:
                         angle = 'None'
+
             self.info.loc[i,'Angle'] = angle
+            self.info.loc[i,'Pol. Type'] = poltype
 
             date = hdulist[0].header['DATE-OBS']
             self.info.loc[i,'Date'] = date
@@ -480,12 +466,10 @@ class MetaData(object):
 
 
 # ################# LINEAR SPECPOL ####################### #
+class SpecPol(object):
 
-#TODO:Comment
-class LinearSpecPol(object):
-    def __init__(self, oray='ap2', metadata = 'metadata',
-                 bin_size=None, snrplot=False):
-
+    def __init__(self, oray='ap2', metadata = 'metadata', bin_size=None,
+                 snrplot=False):
         if oray == 'ap2':
             self.oray, self.eray = 'ap2', 'ap1'
         elif oray == 'ap1':
@@ -496,15 +480,116 @@ class LinearSpecPol(object):
             self.metadata = pd.read_csv(metadata, sep='\t')
         elif isinstance(metadata, pd.core.frame.DataFrame):
             self.metadata = metadata
+        self.bin_size=bin_size
+        self.snrplot = snrplot
+        self.pol_file = None
+        self.flag = None
 
-        self.bin_size = bin_size
+    def _flux_diff_from_file(self, files, check_bin=False):
+        # keeping this as separate function because making instance within the function means they can be forgotten
+        # when come out of it and not take up too much memory
+
+        # Extracting polarised fluxes of o and e ray and their errors according to filenames
+        for filename in files:
+            if self.oray in filename:
+                if 'err' not in filename:
+                    self.wl, fo = np.loadtxt(filename, unpack=True, usecols=(0, 1))
+                else:
+                    self.wl, fo_r = np.loadtxt(filename, unpack=True, usecols=(0, 1))
+
+            if self.eray in filename:
+                if 'err' not in filename:
+                    self.wl, fe = np.loadtxt(filename, unpack=True, usecols=(0, 1))
+                else:
+                    self.wl, fe_r = np.loadtxt(filename, unpack=True, usecols=(0, 1))
+
+        # BINNING
+        if self.bin_size is None:
+            self.wl_bin, fo_bin, fo_bin_r, fe_bin, fe_bin_r = self.wl, fo, fo_r, fe, fe_r
+
+        else:
+            print("Binning to ", self.bin_size, "Angstrom")
+            self.wl_bin, fo_bin, fo_bin_r = rebin(self.wl, fo, fo_r, bin_siz=self.bin_size)
+            self.wl_bin, fe_bin, fe_bin_r = rebin(self.wl, fe, fe_r, bin_siz=self.bin_size)
+
+            # To perform a few checks on the binning (in particular the SNR yielded by binning)
+            if check_bin is True:
+                self._check_binning(fo, fe, fo_r, fe_r, fo_bin, fe_bin, fo_bin_r, fe_bin_r)
+
+        # Finding flux difference
+        F, F_r = F_from_oeray(fo_bin, fe_bin, fo_bin_r, fe_bin_r)
+
+        return self.wl_bin, F, F_r
+
+    def _list_files(self, angle, linpol = True, fileloc='.'):
+        if linpol is True:
+            poltype = 'lin'
+        else:
+            poltype = 'circ'
+
+        angle = float(angle)
+        root_list = [str(self.metadata.loc[i,"Filename"])[:-5]\
+                  for i in xrange(len(self.metadata["Filename"])) \
+                  if self.metadata.loc[i, 'Flag'] == self.flag \
+                  if float(self.metadata.loc[i, 'Angle']) == angle \
+                    if self.metadata.loc[i, 'Pol. Type'] == poltype]
+
+        mylist = []
+        sorted_files = sorted([filename for filename in os.listdir(fileloc) if '.txt' in filename and '1D' in filename])
+        for filename in sorted_files:
+            for root in root_list:
+                if root in filename:
+                    mylist.append(filename)
+        return mylist
+
+    def _check_binning(self, fo, fe, fo_r, fe_r, bin_fo, bin_fe, bin_fo_r, bin_fe_r):
+        snr_not_binned = np.array((fo + fe) / np.sqrt(fo_r ** 2 + fe_r ** 2))
+        snr_expected = snr_not_binned * np.sqrt(self.bin_size / (self.wl[1] - self.wl[0]))
+        ind_not_binned_central_wl = int(np.argwhere(self.wl == min(self.wl, key=lambda x: abs(x - 6204)))[0])
+        snr_not_binned_central_wl = snr_not_binned[ind_not_binned_central_wl]
+        snr_central_expected = snr_not_binned_central_wl * np.sqrt(self.bin_size / (self.wl[1] - self.wl[0]))
+
+        snr_binned = np.array((bin_fo + bin_fe) / np.sqrt(bin_fo_r ** 2 + bin_fe_r ** 2))
+        ind_central_wl = int(np.argwhere(self.wl_bin == min(self.wl_bin, key=lambda x: abs(x - 6204)))[0])
+        snr_central_wl = (bin_fo[ind_central_wl] + bin_fe[ind_central_wl]) / \
+                         np.sqrt(bin_fo_r[ind_central_wl] ** 2 + bin_fe_r[ind_central_wl] ** 2)
+
+        print("\n======== BEFORE BINNING ======")
+        print("MEDIAN SNR ")
+        print(np.median(snr_not_binned))
+
+        print("CENTRAL SNR at (", self.wl[ind_not_binned_central_wl], " A)")
+        print(snr_not_binned_central_wl)
+
+        print("======== AFTER BINNING ======")
+
+        print("MEDIAN SNR / EXPECTED ")
+        print(np.median(snr_binned), np.median(snr_expected))
+
+        print("CENTRAL SNR / EXPECTED (at ", self.wl[ind_not_binned_central_wl], " A)")
+        print(snr_central_wl, snr_central_expected)
+        print("\n")
+
+        if self.snrplot is True:
+            plt.plot(self.wl, snr_expected, marker='o', label='Expected')
+            plt.plot(self.wl_bin, snr_binned, marker='x', label='Calculated after binning')
+            plt.legend()
+            plt.title("SNR")
+            plt.show()
+
+        return
+
+
+
+class LinearSpecPol(SpecPol):
+
+    def __init__(self, oray='ap2', metadata = 'metadata',
+                 bin_size=None, snrplot=False):
+        SpecPol.__init__(self, oray, metadata,bin_size, snrplot)
         self.wl= None
         self.wl_bin = None
         self.poldata = pd.DataFrame(columns = ['wl', 'p', 'p_r', 'q', 'q_r',
                                                'u', 'u_r', 'theta', 'theta_r'], dtype='float64')
-        self.snrplot = snrplot
-        self.pol_file = None
-        self.flag = None
 
     def calculate(self, flag='tar'):
 
@@ -520,7 +605,7 @@ class LinearSpecPol(object):
         u_r_ls = []
 
         for i in range(len(ls_F0)):
-            p, pr, q, q_r, u, u_r, theta, theta_r, delta_e= self._specpol(ls_F0[i], ls_F0_r[i], ls_F1[i],
+            p, pr, q, q_r, u, u_r, theta, theta_r, delta_e= self._linspecpol(ls_F0[i], ls_F0_r[i], ls_F1[i],
                                                                                        ls_F1_r[i], ls_F2[i], ls_F2_r[i],
                                                                                        ls_F3[i], ls_F3_r[i])
             q_ls.append(q)
@@ -642,7 +727,7 @@ class LinearSpecPol(object):
             print("MEAN Delta epsilon =", self.poldata[column].values.mean(),
                   "STDV =", self.poldata[column].values.std() )
 
-        axarr[4].set_ylabel(r"$\Delta \epsilon", fontsize=16)
+        axarr[4].set_ylabel(r"$\Delta \epsilon$", fontsize=16)
         axarr[4].set_ylim([-4.0, 4.0])
         plt.xlim([3500, 10000])
 
@@ -655,20 +740,6 @@ class LinearSpecPol(object):
 
         plt.show()
 
-    def _list_files(self, angle, fileloc='.'):
-        angle = float(angle)
-        root_list = [str(self.metadata.loc[i,"Filename"])[:-5]\
-                  for i in xrange(len(self.metadata["Filename"])) \
-                  if self.metadata.loc[i, 'Flag'] == self.flag \
-                  if float(self.metadata.loc[i, 'Angle']) == angle]
-
-        mylist = []
-        sorted_files = sorted([filename for filename in os.listdir(fileloc) if '.txt' in filename and '1D' in filename])
-        for filename in sorted_files:
-            for root in root_list:
-                if root in filename:
-                    mylist.append(filename)
-        return mylist
 
     def _get_data(self):
         """
@@ -680,19 +751,14 @@ class LinearSpecPol(object):
         # are written on the disc
         #sorted_files = sorted([filename for filename in os.listdir(".")
         #                       if 'dSCIENCE' in filename and 'fits' not in filename and 'c_' not in filename])
-        files_0_deg = self._list_files(0.0)
-        files_22_deg = self._list_files(22.5)
-        files_45_deg = self._list_files(45.0)
-        files_67_deg = self._list_files(67.5)
+        files_0_deg = SpecPol._list_files(self, 0.0)
+        files_22_deg = SpecPol._list_files(self, 22.5)
+        files_45_deg = SpecPol._list_files(self, 45.0)
+        files_67_deg = SpecPol._list_files(self, 67.5)
         errormessage = "It seems you don't have the same number of images for each retarder plate angle. " \
                        "This may not be code breaking but only complete sets of retarder plate angles can be used."
 
         assert len(files_0_deg) == len(files_22_deg) == len(files_45_deg) == len(files_67_deg), errormessage
-
-        print(files_0_deg)
-        print(files_22_deg)
-        print(files_45_deg)
-        print(files_67_deg)
 
         ls_F0 = []
         ls_F0_r = []
@@ -720,16 +786,16 @@ class LinearSpecPol(object):
             files_67_deg_subset = files_67_deg[0 + step:4 + step]
             if i == 0:
                 check = True
-            wl0, F0, F0_r = self._flux_diff_from_file(files_0_deg_subset, check_bin=check)
+            wl0, F0, F0_r = SpecPol._flux_diff_from_file(self, files_0_deg_subset, check_bin=check)
             ls_F0.append(F0)
             ls_F0_r.append(F0_r)
-            wl1, F1, F1_r = self._flux_diff_from_file(files_22_deg_subset)
+            wl1, F1, F1_r = SpecPol._flux_diff_from_file(self, files_22_deg_subset)
             ls_F1.append(F1)
             ls_F1_r.append(F1_r)
-            wl2, F2, F2_r = self._flux_diff_from_file(files_45_deg_subset)
+            wl2, F2, F2_r = SpecPol._flux_diff_from_file(self, files_45_deg_subset)
             ls_F2.append(F2)
             ls_F2_r.append(F2_r)
-            wl3, F3, F3_r = self._flux_diff_from_file(files_67_deg_subset)
+            wl3, F3, F3_r = SpecPol._flux_diff_from_file(self, files_67_deg_subset)
             ls_F3.append(F3)
             ls_F3_r.append(F3_r)
 
@@ -737,80 +803,8 @@ class LinearSpecPol(object):
 
         return ls_F0, ls_F0_r, ls_F1, ls_F1_r, ls_F2, ls_F2_r, ls_F3, ls_F3_r
 
-    def _flux_diff_from_file(self, files, check_bin=False):
-        # keeping this as separate function because making instance within the function means they can be forgotten
-        # when come out of it and not take up too much memory
 
-        # Extracting polarised fluxes of o and e ray and their errors according to filenames
-        for filename in files:
-            if self.oray in filename:
-                if 'err' not in filename:
-                    self.wl, fo = np.loadtxt(filename, unpack=True, usecols=(0, 1))
-                else:
-                    self.wl, fo_r = np.loadtxt(filename, unpack=True, usecols=(0, 1))
-
-            if self.eray in filename:
-                if 'err' not in filename:
-                    self.wl, fe = np.loadtxt(filename, unpack=True, usecols=(0, 1))
-                else:
-                    self.wl, fe_r = np.loadtxt(filename, unpack=True, usecols=(0, 1))
-
-        # BINNING
-        if self.bin_size is None:
-            self.wl_bin, fo_bin, fo_bin_r, fe_bin, fe_bin_r = self.wl, fo, fo_r, fe, fe_r
-
-        else:
-            print("Binning to ", self.bin_size, "Angstrom")
-            self.wl_bin, fo_bin, fo_bin_r = rebin(self.wl, fo, fo_r, bin_siz=self.bin_size)
-            self.wl_bin, fe_bin, fe_bin_r = rebin(self.wl, fe, fe_r, bin_siz=self.bin_size)
-
-            # To perform a few checks on the binning (in particular the SNR yielded by binning)
-            if check_bin is True:
-                self._check_binning(fo, fe, fo_r, fe_r, fo_bin, fe_bin, fo_bin_r, fe_bin_r)
-
-        # Finding flux difference
-        F, F_r = F_from_oeray(fo_bin, fe_bin, fo_bin_r, fe_bin_r)
-
-        return self.wl_bin, F, F_r
-
-    def _check_binning(self, fo, fe, fo_r, fe_r, bin_fo, bin_fe, bin_fo_r, bin_fe_r):
-        snr_not_binned = np.array((fo + fe) / np.sqrt(fo_r ** 2 + fe_r ** 2))
-        snr_expected = snr_not_binned * np.sqrt(self.bin_size / (self.wl[1] - self.wl[0]))
-        ind_not_binned_central_wl = int(np.argwhere(self.wl == min(self.wl, key=lambda x: abs(x - 6204)))[0])
-        snr_not_binned_central_wl = snr_not_binned[ind_not_binned_central_wl]
-        snr_central_expected = snr_not_binned_central_wl * np.sqrt(self.bin_size / (self.wl[1] - self.wl[0]))
-
-        snr_binned = np.array((bin_fo + bin_fe) / np.sqrt(bin_fo_r ** 2 + bin_fe_r ** 2))
-        ind_central_wl = int(np.argwhere(self.wl_bin == min(self.wl_bin, key=lambda x: abs(x - 6204)))[0])
-        snr_central_wl = (bin_fo[ind_central_wl] + bin_fe[ind_central_wl]) / \
-                         np.sqrt(bin_fo_r[ind_central_wl] ** 2 + bin_fe_r[ind_central_wl] ** 2)
-
-        print("\n======== BEFORE BINNING ======")
-        print("MEDIAN SNR ")
-        print(np.median(snr_not_binned))
-
-        print("CENTRAL SNR at (", self.wl[ind_not_binned_central_wl], " A)")
-        print(snr_not_binned_central_wl)
-
-        print("======== AFTER BINNING ======")
-
-        print("MEDIAN SNR / EXPECTED ")
-        print(np.median(snr_binned), np.median(snr_expected))
-
-        print("CENTRAL SNR / EXPECTED (at ", self.wl[ind_not_binned_central_wl], " A)")
-        print(snr_central_wl, snr_central_expected)
-        print("\n")
-
-        if self.snrplot is True:
-            plt.plot(self.wl, snr_expected, marker='o', label='Expected')
-            plt.plot(self.wl_bin, snr_binned, marker='x', label='Calculated after binning')
-            plt.legend()
-            plt.title("SNR")
-            plt.show()
-
-        return
-
-    def _specpol(self, F0, F0_r, F1, F1_r, F2, F2_r, F3, F3_r):
+    def _linspecpol(self, F0, F0_r, F1, F1_r, F2, F2_r, F3, F3_r):
         """
         Finds the p, q, u, theta and errors on these quantities for a set of spectropolarimetric data.
 
@@ -874,6 +868,152 @@ class LinearSpecPol(object):
         return pf, p_r * 100, qf, q_r * 100, uf, u_r * 100, theta, theta_r, delta_e
 
 
+class CircSpecPol(SpecPol):
+
+    def __init__(self, oray='ap2', metadata = 'metadata',
+                 bin_size=None, snrplot=False):
+        SpecPol.__init__(self, oray, metadata, bin_size, snrplot)
+        self.wl= None
+        self.wl_bin = None
+        self.poldata = pd.DataFrame(columns = ['wl', 'v', 'v_r'], dtype='float64')
+
+    def calculate(self, flag='tar'):
+
+        self.flag = flag
+        # Now getting the data from the files in lists that will be used by the specpol() function.
+        ls_F0, ls_F0_r, ls_F1, ls_F1_r = self._get_data()
+
+        self.poldata["wl"] = self.wl_bin # even if have not rebinned since in that case we do self.wl_bin = self.wl
+
+        v_ls = []
+        v_r_ls = []
+
+        for i in range(len(ls_F0)):
+            v, v_r, epsilon = self._circspecpol(ls_F0[i], ls_F0_r[i], ls_F1[i], ls_F1_r[i])
+            v_ls.append(v)
+            v_r_ls.append(v_r)
+
+            self.poldata["epsilon"+str(i)] = epsilon
+
+        for num in range(len(v_ls[0])):
+            # num indexes the bins each list of Stokes parameters values
+            v_to_avg = []
+            v_r_to_sum = np.array([])
+            for s in range(len(v_ls)):
+                v_to_avg.append(v_ls[s][num])
+                v_r_to_sum = np.append(v_r_to_sum, (1 / ((v_r_ls[s][num]) ** 2)))
+
+            self.poldata.loc[num, 'v'] = np.average(v_to_avg, weights = v_r_to_sum)
+            self.poldata.loc[num, 'v_r'] = np.sqrt(1 / np.sum(v_r_to_sum))
+
+
+        # ###### CREATING THE TEXT FILE ###### #
+        self.pol_file = input('What do you want to name the polarisation file? ')
+
+        try:
+            os.remove(self.pol_file + ".pol")
+        except OSError:
+            pass
+
+        self.poldata.to_csv(self.pol_file+".pol", index=False, sep="\t")
+
+        return self.poldata
+
+    def _get_data(self):
+        """
+        This takes the flux data from the text files given by IRAF and sorts them in lists for later use.
+
+        """
+        files_45_deg = SpecPol._list_files(self, 45.0, linpol=False)
+        files_315_deg = SpecPol._list_files(self, 315, linpol=False)
+
+        errormessage = "It seems you don't have the same number of images for each retarder plate angle. " \
+                       "This may not be code breaking but only complete sets of retarder plate angles can be used."
+
+        assert len(files_45_deg) == len(files_315_deg), errormessage
+
+        ls_F0 = []
+        ls_F0_r = []
+
+        ls_F1 = []
+        ls_F1_r = []
+
+        for file_list in [files_45_deg, files_315_deg]:
+            nbre_sets = len(file_list) / 4
+            nbre_sets_remainder = len(file_list) % 4
+            assert nbre_sets_remainder == 0, "There should be 4 data files for each image (2 apertures x (flux + err))"
+            print("4 Files per images... All good here")
+
+        for i in range(int(nbre_sets)):
+            step = i * 4
+            files_45_deg_subset = files_45_deg[0 + step:4 + step]
+            files_315_deg_subset = files_315_deg[0 + step:4 + step]
+
+            if i == 0:
+                check = True
+            wl0, F0, F0_r = SpecPol._flux_diff_from_file(self, files_45_deg_subset, check_bin=check)
+            ls_F0.append(F0)
+            ls_F0_r.append(F0_r)
+            wl1, F1, F1_r = SpecPol._flux_diff_from_file(self, files_315_deg_subset)
+            ls_F1.append(F1)
+            ls_F1_r.append(F1_r)
+
+        assert len(wl0) == len(wl1), "Wavelength bins not homogeneous. This will be an issue."
+
+        return ls_F0, ls_F0_r, ls_F1, ls_F1_r
+
+    def _circspecpol(self, F0, F0_r, F1, F1_r):
+
+        # Now Stokes parameters and degree of pol.
+        v = 0.5 * (F0 - F1)
+        v_r = 0.5*np.sqrt(F0_r**2 + F1_r**2)
+
+        # Now calculating epsilon q and epsilon u and Delta epsilon.
+        epsilon = 0.5 * (F0 + F1)
+        return v*100, v_r * 100, epsilon*100
+
+    def plot(self):
+
+        f, axarr = plt.subplots(2, 1, figsize=(10, 10), sharex=True)
+        plt.subplots_adjust(hspace=0)
+
+        # First axis is v
+        wl = self.poldata["wl"]
+        v = self.poldata["v"]
+        v_r = self.poldata['v_r']
+        axarr[0].errorbar(wl, v, yerr=v_r, c='#D92F2F')
+        axarr[0].axhline(0, 0, ls='--', c='k')
+        vmax = -1000
+        vmin = 10000
+        for i in range(len(wl)):
+            if wl[i] > 4500 and v[i] > vmax:
+                vmax = v[i]
+            if wl[i] > 4500 and v[i] < vmin:
+                vmin = v[i]
+
+        axarr[0].set_ylim([vmin - 0.4, vmax + 0.4])
+        axarr[0].set_ylabel('v(%)', fontsize=14)
+
+        # And then the Delta epsilons of each data set.
+
+        delta_cols = [col for col in self.poldata.columns if 'epsilon' in col]
+        for column in delta_cols:
+            axarr[1].plot(wl, self.poldata[column], alpha=0.8)
+            print("MEAN Delta epsilon =", self.poldata[column].values.mean(),
+                  "STDV =", self.poldata[column].values.std() )
+
+        axarr[1].set_ylabel(r"$\Delta \epsilon$", fontsize=16)
+        axarr[1].set_ylim([-6, 6])
+        plt.xlim([3500, 10000])
+
+        save_cond = input("do you want to save the plot?(Y/n): ")
+        if save_cond == "y" or save_cond == "Y" or save_cond == "":
+            plt.savefig(self.pol_file+ ".png")
+            print("Plot saved")
+        else:
+            print("Plot not saved")
+
+        plt.show()
 
 
 # ################## FOR BACKWARDS COMPATIBILITY THE FOLLOWING IS KEPT IN DATRED.PY UNTOUCHED ##########################
