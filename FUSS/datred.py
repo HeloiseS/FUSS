@@ -44,7 +44,6 @@ flux_spectrum():
     Combines all the flux calibrated apertures to create the flux spectrum.
 """
 # TODO: Update above info (out of date)
-# TODO: NEED TO TEST POL_ANG
 # TODO: Make SpecPol Class that LinearSpecPol and CircularSpecPol can inherit from
 # TODO: Comments and docstrings when finished changing architecture of damn code.
 # TODO: tests!!!???
@@ -188,7 +187,6 @@ def sort_red():
 
 #####  STUFF NEEDED FOR SPECPOL #####
 
-
 def rebin(wl, f, r, bin_siz=15):
     """
     To rebin my flux spectra
@@ -306,7 +304,6 @@ def pol_deg(q, u, q_r=None, u_r=None):
         return p, None
 
 
-# TODO: NEED TO TEST!
 def pol_ang(q, u, q_r=None, u_r=None):
     """
     Calculates the polarisation angle
@@ -354,7 +351,7 @@ def F_from_oeray(fo, fe, fo_r, fe_r):
 
     return F, F_r
 
-
+#TODO:comment
 class MetaData(object):
     """
     Our meta data for the observations
@@ -484,41 +481,22 @@ class MetaData(object):
 
 # ################# LINEAR SPECPOL ####################### #
 
-
+#TODO:Comment
 class LinearSpecPol(object):
-    def __init__(self, oray='ap2', hwrpafile='hwrpangles.txt',
+    def __init__(self, oray='ap2', metadata = 'metadata',
                  bin_size=None, snrplot=False):
-        """
-
-        Parameters
-        ----------
-        oray : string, optional
-            "ap2" or "ap1". Default is "ap1". The aperture that corresponds to your ordinary ray.
-
-        hwrpafile : string, optional
-            path of the file containing the
-        bin_size
-        snrplot
-
-        Returns
-        -------
-
-        """
 
         if oray == 'ap2':
             self.oray, self.eray = 'ap2', 'ap1'
         elif oray == 'ap1':
             self.oray, self.eray = 'ap1', 'ap2'
 
-        self.hwrpafile = hwrpafile
-        # list of files corresponding to each angle (0, 22.5, 45, 67.5)
-        self.ls_0, self.ls_1, self.ls_2, self.ls_3 = np.genfromtxt(self.hwrpafile, dtype='str',
-                                                                   unpack=True, usecols=(0, 1, 2, 3))
+        if isinstance(metadata, str):
+            assert os.path.isfile(metadata), metadata+" is not a valid file path."
+            self.metadata = pd.read_csv(metadata, sep='\t')
+        elif isinstance(metadata, pd.core.frame.DataFrame):
+            self.metadata = metadata
 
-        errormessage = "It seems you don't have the same number of images for each retarder plate angle. " \
-                       "This may not be code breaking but only complete sets of retarder plate angles can be used."
-
-        assert len(self.ls_0) == len(self.ls_1) == len(self.ls_2) == len(self.ls_3), errormessage
         self.bin_size = bin_size
         self.wl= None
         self.wl_bin = None
@@ -526,15 +504,11 @@ class LinearSpecPol(object):
                                                'u', 'u_r', 'theta', 'theta_r'], dtype='float64')
         self.snrplot = snrplot
         self.pol_file = None
+        self.flag = None
 
-    def calculate(self):
-        """
-        Main function of LinearSpecPol
+    def calculate(self, flag='tar'):
 
-        Returns
-        -------
-
-        """
+        self.flag = flag
         # Now getting the data from the files in lists that will be used by the specpol() function.
         ls_F0, ls_F0_r, ls_F1, ls_F1_r, ls_F2, ls_F2_r, ls_F3, ls_F3_r = self._get_data()
 
@@ -544,7 +518,6 @@ class LinearSpecPol(object):
         q_r_ls = []
         u_ls = []
         u_r_ls = []
-        self.delta_es = []
 
         for i in range(len(ls_F0)):
             p, pr, q, q_r, u, u_r, theta, theta_r, delta_e= self._specpol(ls_F0[i], ls_F0_r[i], ls_F1[i],
@@ -602,6 +575,101 @@ class LinearSpecPol(object):
 
         return self.poldata
 
+    def plot(self):
+        if self.poldata is None:
+            return "You should run the `calculate`method before trying to make plots "
+
+        wavelength = self.poldata['wl'].values
+        p = self.poldata['p'].values
+        p_r = self.poldata['p_r'].values
+        q = self.poldata['q'].values
+        q_r = self.poldata['q_r'].values
+        u = self.poldata['u'].values
+        u_r = self.poldata['u_r'].values
+        theta = self.poldata['theta'].values
+        theta_r = self.poldata['theta_r'].values
+
+        f, axarr = plt.subplots(5, 1, figsize=(8, 8), sharex=True)
+        plt.subplots_adjust(hspace=0)
+
+        # First axis is p
+        axarr[0].errorbar(wavelength, p,yerr=p_r, c='#D92F2F')
+        axarr[0].axhline(0, 0, ls='--', c='k')
+        pmax = -1000
+        for i in range(len(wavelength)):
+            if wavelength[i] > 4500 and p[i] > pmax:
+                pmax = p[i]
+
+        axarr[0].set_ylim([-0.1, pmax + 0.4])
+        axarr[0].set_ylabel('p(%)', fontsize=14)
+
+        # Then q
+        axarr[1].errorbar(wavelength, q, yerr=q_r, c='#D92F2F')
+        axarr[1].axhline(0, 0, ls='--', c='k')
+        qmax = -1000
+        qmin = 1000
+        for i in range(len(wavelength)):
+            if wavelength[i] > 4500 and q[i] > qmax:
+                qmax = q[i]
+            if wavelength[i] > 4500 and q[i] < qmin:
+                qmin = q[i]
+        axarr[1].set_ylim([qmin - 0.3, qmax + 0.3])
+        axarr[1].set_ylabel('q(%)', fontsize=14)
+
+        # And u
+        axarr[2].errorbar(wavelength, u, yerr=u_r, c='#D92F2F')
+        axarr[2].axhline(0, 0, ls='--', c='k')
+        umax = -1000
+        umin = 1000
+        for i in range(len(wavelength)):
+            if wavelength[i] > 4500 and u[i] > umax:
+                umax = u[i]
+            if wavelength[i] > 4500 and u[i] < umin:
+                umin = u[i]
+        axarr[2].set_ylim([umin - 0.3, umax + 0.3])
+        axarr[2].set_ylabel('u(%)', fontsize=14)
+
+        # P.A
+        axarr[3].errorbar(wavelength, theta, yerr=theta_r, c='#D92F2F')
+        axarr[3].axhline(0, 0, ls='--', c='k')
+        axarr[3].set_ylim([-0, 180])
+        axarr[3].set_ylabel('theta', fontsize=14)
+
+        # And finally the Delta epsilons of each data set.
+        delta_cols = [col for col in self.poldata.columns if 'delta' in col]
+        for column in delta_cols:
+            axarr[4].plot(wavelength, self.poldata[column], alpha=0.8)
+            print("MEAN Delta epsilon =", self.poldata[column].values.mean(),
+                  "STDV =", self.poldata[column].values.std() )
+
+        axarr[4].set_ylabel(r"$\Delta \epsilon", fontsize=16)
+        axarr[4].set_ylim([-4.0, 4.0])
+        plt.xlim([3500, 10000])
+
+        save_cond = input("do you want to save the plot?(Y/n): ")
+        if save_cond == "y" or save_cond == "Y" or save_cond == "":
+            plt.savefig(self.pol_file + ".png")
+            print("Plot saved")
+        else:
+            print("Plot not saved")
+
+        plt.show()
+
+    def _list_files(self, angle, fileloc='.'):
+        angle = float(angle)
+        root_list = [str(self.metadata.loc[i,"Filename"])[:-5]\
+                  for i in xrange(len(self.metadata["Filename"])) \
+                  if self.metadata.loc[i, 'Flag'] == self.flag \
+                  if float(self.metadata.loc[i, 'Angle']) == angle]
+
+        mylist = []
+        sorted_files = sorted([filename for filename in os.listdir(fileloc) if '.txt' in filename and '1D' in filename])
+        for filename in sorted_files:
+            for root in root_list:
+                if root in filename:
+                    mylist.append(filename)
+        return mylist
+
     def _get_data(self):
         """
         This takes the flux data from the text files given by IRAF and sorts them in lists for later use.
@@ -610,8 +678,22 @@ class LinearSpecPol(object):
 
         # Need to do this because python doesn't read files in alphabetical order but in order they
         # are written on the disc
-        sorted_files = sorted([filename for filename in os.listdir(".")
-                               if 'dSCIENCE' in filename and 'fits' not in filename and 'c_' not in filename])
+        #sorted_files = sorted([filename for filename in os.listdir(".")
+        #                       if 'dSCIENCE' in filename and 'fits' not in filename and 'c_' not in filename])
+        files_0_deg = self._list_files(0.0)
+        files_22_deg = self._list_files(22.5)
+        files_45_deg = self._list_files(45.0)
+        files_67_deg = self._list_files(67.5)
+        errormessage = "It seems you don't have the same number of images for each retarder plate angle. " \
+                       "This may not be code breaking but only complete sets of retarder plate angles can be used."
+
+        assert len(files_0_deg) == len(files_22_deg) == len(files_45_deg) == len(files_67_deg), errormessage
+
+        print(files_0_deg)
+        print(files_22_deg)
+        print(files_45_deg)
+        print(files_67_deg)
+
         ls_F0 = []
         ls_F0_r = []
 
@@ -624,47 +706,10 @@ class LinearSpecPol(object):
         ls_F3 = []
         ls_F3_r = []
 
-        valid1 = re.compile('SCI')
-        valid2 = re.compile('STD')
-        find_nbr = re.compile('\d{1,3}')  # This is what we'll look for in filename: a number 1-3 digits long
-        # The first part searches for the
-        files_0_deg = []
-        files_22_deg = []
-        files_45_deg = []
-        files_67_deg = []
-
-        for filename in sorted_files:
-            nbr_in_file_name = "PasLa"
-            # finding the number in the filename. Searched through filename for a 1-3 digit number and returns it.
-            try:
-                if valid1.search(filename) or valid2.search(filename):
-                    nbr_in_file_name = find_nbr.search(filename[1:]).group()
-                    # removing first character as files start with a 1 usually and that messes things up
-            except AttributeError:
-                print("Couldn't find a number in this filename - passing")
-                pass
-            # The following compares the number in the filename to the number in ls_0 to see if the image
-            # correspond to a 0 deg HWRP angle set up.
-
-            if str(nbr_in_file_name) in self.ls_0:
-                files_0_deg.append(filename)
-
-            # Same thing as the first loop but for 22.5 HWRP
-            elif str(nbr_in_file_name) in self.ls_1:
-                files_22_deg.append(filename)
-
-            # Same thing as the first loop but for 45 HWRP
-            elif str(nbr_in_file_name) in self.ls_2:
-                files_45_deg.append(filename)
-
-            # Same thing as the first loop but for 67.5 HWRP
-            elif str(nbr_in_file_name) in self.ls_3:
-                files_67_deg.append(filename)
-
         for file_list in [files_0_deg, files_22_deg, files_45_deg, files_67_deg]:
             nbre_sets = len(file_list) / 4
             nbre_sets_remainder = len(file_list) % 4
-            assert nbre_sets_remainder == 0, "There should be 4 data files for each image "
+            assert nbre_sets_remainder == 0, "There should be 4 data files for each image (2 apertures x (flux + err))"
             print("4 Files per images... All good here")
 
         for i in range(int(nbre_sets)):
@@ -828,85 +873,7 @@ class LinearSpecPol(object):
 
         return pf, p_r * 100, qf, q_r * 100, uf, u_r * 100, theta, theta_r, delta_e
 
-    def plot(self):
-        if self.poldata is None:
-            return "You should run the `calculate`method before trying to make plots "
 
-        wavelength = self.poldata['wl'].values
-        p = self.poldata['p'].values
-        p_r = self.poldata['pr'].values
-        q = self.poldata['q'].values
-        q_r = self.poldata['qr'].values
-        u = self.poldata['u'].values
-        ur = self.poldata['ur'].values
-        theta = self.poldata['theta'].values
-        theta_r = self.poldata['thetar'].values
-
-        f, axarr = plt.subplots(5, 1, figsize=(8, 8), sharex=True)
-        plt.subplots_adjust(hspace=0)
-
-        # First axis is p
-        axarr[0].errorbar(wavelength, p,yerr=p_r, c='#D92F2F')
-        axarr[0].axhline(0, 0, ls='--', c='k')
-        pmax = -1000
-        for i in range(len(wavelength)):
-            if wavelength[i] > 4500 and p[i] > pmax:
-                pmax = p[i]
-
-        axarr[0].set_ylim([-0.1, pmax + 0.4])
-        axarr[0].set_ylabel('p(%)', fontsize=14)
-
-        # Then q
-        axarr[1].errorbar(wavelength, q, yerr=q_r, c='#D92F2F')
-        axarr[1].axhline(0, 0, ls='--', c='k')
-        qmax = -1000
-        qmin = 1000
-        for i in range(len(wavelength)):
-            if wavelength[i] > 4500 and q[i] > qmax:
-                qmax = q[i]
-            if wavelength[i] > 4500 and q[i] < qmin:
-                qmin = q[i]
-        axarr[1].set_ylim([qmin - 0.3, qmax + 0.3])
-        axarr[1].set_ylabel('q(%)', fontsize=14)
-
-        # And u
-        axarr[2].errorbar(wavelength, u, yerr=u_r, c='#D92F2F')
-        axarr[2].axhline(0, 0, ls='--', c='k')
-        umax = -1000
-        umin = 1000
-        for i in range(len(wavelength)):
-            if wavelength[i] > 4500 and u[i] > umax:
-                umax = u[i]
-            if wavelength[i] > 4500 and u[i] < umin:
-                umin = u[i]
-        axarr[2].set_ylim([umin - 0.3, umax + 0.3])
-        axarr[2].set_ylabel('u(%)', fontsize=14)
-
-        # P.A
-        axarr[3].errorbar(wavelength, theta, yerr=theta_r, c='#D92F2F')
-        axarr[3].axhline(0, 0, ls='--', c='k')
-        axarr[3].set_ylim([-0, 180])
-        axarr[3].set_ylabel('theta', fontsize=14)
-
-        # And finally the Delta epsilons of each data set.
-        delta_cols = [col for col in self.poldata.columns if 'delta' in col]
-        for column in delta_cols:
-            axarr[4].plot(wavelength, self.poldata[column], alpha=0.8)
-            print("MEAN Delta epsilon =", self.poldata[column].values.mean(),
-                  "STDV =", self.poldata[column].values.std() )
-
-        axarr[4].set_ylabel(r"$\Delta \epsilon", fontsize=16)
-        axarr[4].set_ylim([-4.0, 4.0])
-        plt.xlim([3500, 10000])
-
-        save_cond = input("do you want to save the plot?(Y/n): ")
-        if save_cond == "y" or save_cond == "Y" or save_cond == "":
-            plt.savefig(self.pol_file + ".png")
-            print("Plot saved")
-        else:
-            print("Plot not saved")
-
-        plt.show()
 
 
 # ################## FOR BACKWARDS COMPATIBILITY THE FOLLOWING IS KEPT IN DATRED.PY UNTOUCHED ##########################
