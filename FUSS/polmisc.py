@@ -233,6 +233,45 @@ def dopcor_file(filename, z):
 
     print(output + ' created')
 
+def ylim_def(wl, f, wlmin=4500, wlmax=9500):
+    """
+    (Yes I need this in PolData) finds appropriate y limits for a spectrum. Look at values between a given range (Default: 4500-9500A) where
+    we don't expect few order of magnitudes discrepancies like we see sometimes at the extremeties of the spectrum, then
+    find the max and min value then define ymax and ymin.
+    """
+
+    fmax = -100000
+    fmin = 1000
+    for i in xrange(len(wl)):
+        if wl[i] < wlmax and wl[i] > wlmin:
+            if f[i] < fmin:
+                fmin = f[i]
+                #print(fmin)
+            elif f[i] > fmax:
+                fmax = f[i]
+                #print(fmax)
+
+    # These tweaks to make the y limit okay were determined through testing. May not always
+    # be appropriate and might need fixing later.
+    if fmin > 0 and fmin < 1:
+        ymin = fmin - 1.2 * fmin
+    elif fmin > 0 and fmin > 1:
+        ymin = fmin - fmin / 5
+    elif fmin < 0 and fmin > -1:
+        ymin = fmin + 1.2 * fmin
+    elif fmin < 0 and fmin < -1:
+        ymin = fmin + fmin / 5
+
+    if fmax > 0 and fmax < 1:
+        ymax = fmax + 1.2 * fmax
+    elif fmax > 0 and fmax > 1:
+        ymax = fmax + fmax / 5
+    elif fmax < 0 and fmax > -1:
+        ymax = fmax - 1.2 * fmax
+    elif fmax < 0 and fmin < -1:
+        ymax = fmax - fmax / 10
+
+    return ymin, ymax
 
 def rot_data(q, u, theta):
     """
@@ -474,14 +513,17 @@ class PolData(object):
     def __init__(self, poldata, name=' ', wlmin=None, wlmax=1000000):
 
         if type(poldata) is str:
-            #TODO: test this bit
             try:
+                # This if we use the old way of creating pol data files fron datred (space separate no header )
                 pol0 = get_pol(poldata, wlmin=wlmin, wlmax=wlmax)
                 self.wlp, self.p, self.pr= pol0[0], pol0[1], pol0[2]
                 self.q , self.qr, self.u, self.ur, self.a, self.ar = pol0[3], pol0[4], pol0[5], pol0[6], pol0[7], pol0[8]
-            except:
+
+            except ValueError:
+                # This we got the new pol data files for datred (pandas data frame to tab separated file with col names)
                 poldf = pd.read_csv(poldata, sep='\t')
                 mask = (poldf['wl'].values > wlmin) & (poldf['wl'].values < wlmax)
+
                 self.wlp, self.p, self.pr = poldf['wl'].values[mask],  poldf['p'].values[mask],  poldf['p_r'].values[mask]
                 self.q, self.qr = poldf['q'].values[mask],  poldf['q_r'].values[mask]
                 self.u, self.ur = poldf['u'].values[mask],  poldf['u_r'].values[mask]
