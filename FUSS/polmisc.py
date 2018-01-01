@@ -1,12 +1,10 @@
 # TODO: Do I need to update this dosctring to have something show up in the documentation?
 """
-14 - Oct - 2017 / H. F. Stevance / fstevance1@sheffield.ac.uk
+1 - Jan - 2018 / H. F. Stevance / fstevance1@sheffield.ac.uk
 
 This is the main module of FUSS. It contains general utility functions, a couple of interactive routines and
 also defines a new class: PolData, to deal with specpol data.
 All this should make dealing with and analysing specpol data easier.
-
-New: It is all (*) loaded by __init__.py
 
 Functions:
 ----------
