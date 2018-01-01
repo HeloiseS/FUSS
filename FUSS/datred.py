@@ -1,30 +1,35 @@
 """
-11 - Dec - 2017 / H. F. Stevance / fstevance1@sheffield.ac.uk
-
-THE FOLLOWNG IS OUT OF DATE (can do this: r.LinearSpecPol(bin_size=45, snrplot=True).main())
+1 - Jan - 2018 / H. F. Stevance / fstevance1@sheffield.ac.uk
 
 datred.py is a module created as part of the FUSS package to help with the data reduction of spectropolarimetric
 data (at the present time only used with FORS2 data)
 
-Pre-requisites:
------------------
-os, astropy.io, numpy, math, matplotlib.pyplot, pysynphot, scipy.special
+Pre-requisites
+--------------
+os, astropy.io, numpy, math, matplotlib.pyplot, pysynphot, scipy.special, pandas
 
-Attributes:
-----------
+Variable
+--------
 zero_angles : string
     Path to the text file containing the chromatic zero angles for FORS2 (needs updating for you own system).
     Can be found at: http://www.eso.org/sci/facilities/paranal/instruments/fors/inst/pola.html
 
-Functions:
+Functions
 ---------
-sort_red()
-    Creates back-up of the compressed files, uncompresses them, sorts them and re-names them according to the naming
-    convention required to use with my .cl files during data reduction in IRAF. Returns: None
+sort_red
+rebin
+pol_deg
+pol_ang
+F_from_oeray
+
+Classes
+-------
+Meta
+SpecPol
+LinearSpecPol
+CircularSpecPol
 
 """
-# TODO: Update above info (out of date)
-# TODO: Comments and docstrings when finished changing architecture of damn code.
 # TODO: tests!!!???
 
 from __future__ import division
@@ -101,7 +106,8 @@ def sort_red():
                 print("Not CHIP2 " + filename)
 
     for filename in filename_list:
-        # Here we are renaming the files. The naming convention used here is assumed throughout the rest of the datred sub-module.
+        # Here we are renaming the files. The naming convention used here is assumed
+        # throughout the rest of the datred sub-module.
         if "fits" in filename:
             try:
                 hdulist = fits.open(filename)
@@ -165,7 +171,6 @@ def sort_red():
 
     print('\nAll Done! :D \n')
 
-#####  STUFF NEEDED FOR SPECPOL #####
 
 def rebin(wl, f, r, bin_siz=15):
     """
@@ -267,10 +272,36 @@ def rebin(wl, f, r, bin_siz=15):
 
 
 def pol_deg(q, u, q_r=None, u_r=None):
+    """
+    Finds the degree of polarisation p from Stokes parameters q and u. Does debiasing using step function.
+
+    Notes
+    -----
+    q, u, q_r and u_r must have the same dimension
+
+    Parameters
+    ----------
+    q : float or 1D numpy.array
+        Stokes q.
+    u : float or 1D numpy.array
+        Stokes u.
+    q_r : float or 1D numpy.array
+        Errors on Stokes q.
+    u_r : float or 1D numpy.array
+        Errors on Stokes u.
+
+    Returns
+    -------
+    tuple (p, error on p) if errors on q and u are given.
+    Only p if errors are not given.
+
+    """
     p = np.sqrt(q * q + u * u)
     if q_r is not None and u_r is not None:
         p_r = (1 / p) * np.sqrt((q * q_r) ** 2 + (u * u_r) ** 2)
-        
+
+        # Here we are debiasing using a step function. See Wang et al. (1997)
+        # (Polarimetry of the Type IA Supernova SN 1996X -- their equation 3)
         try:
             for i in range(len(p)):
                 if p[i] - p_r[i] > 0:
@@ -281,12 +312,29 @@ def pol_deg(q, u, q_r=None, u_r=None):
             
         return p, p_r
     else:
-        return p, None
+        return p
 
 
 def pol_ang(q, u, q_r=None, u_r=None):
     """
     Calculates the polarisation angle
+
+    Parameters
+    ----------
+    q : float or 1D numpy.array
+        Stokes q.
+    u : float or 1D numpy.array
+        Stokes u.
+    q_r : float or 1D numpy.array
+        Errors on Stokes q.
+    u_r : float or 1D numpy.array
+        Errors on Stokes u.
+
+    Returns
+    -------
+    tuple (theta, error on theta) if errors on q and u are given.
+    Only theta if errors are not given.
+
     """
 
     if isinstance(q, float):
@@ -322,31 +370,150 @@ def pol_ang(q, u, q_r=None, u_r=None):
         else:
             return theta
 
+
 def F_from_oeray(fo, fe, fo_r, fe_r):
+    """
+    Normalised flux (F) from ordinary and extra-ordinary rays
+
+    Notes
+    -----
+    All the arrays should be the same length.
+
+    Parameters
+    ----------
+    fo : 1D numpy.array
+        flux of the ordinary ray
+    fe : 1D numpy.array
+        flux of the extra-ordinary ray
+    fo_r : 1D numpy.array
+        error on the flux of the ordinary ray
+    fe_r : 1D numpy.array
+        error on the flux of the extra-ordinary ray
+
+    Returns
+    -------
+    Normalised flux : np.array
+    """
 
     F = (fo - fe) / (fo + fe)
-    F_r = abs(F) * np.sqrt(
-            ((fo_r ** 2) + (fe_r ** 2)) * (
-                (1 / (fo - fe) ** 2) + (1 / (fo + fe) ** 2)))
+    F_r = abs(F) * np.sqrt( ((fo_r ** 2) + (fe_r ** 2)) * ( (1 / (fo - fe) ** 2) + (1 / (fo + fe) ** 2)) )
 
     return F, F_r
 
-#TODO:comment
-class MetaData(object):
-    """
-    Our meta data for the observations
-    """
 
+class Meta(object):
+    """
+    To find the meta data of the images we are working on, create a data frame and save it to a tab separated file.
+
+    Examples
+    --------
+    >> import FUSS.datred as r
+    >> path = "/home/heloise/Data/11hs/88.D-0761/2011-12-23/FITS/Data_reduction/bad_binning/"
+    >> metadataframe = r.Meta(path=path).dataThe Meta Data file metadata already exists. Would you like to replace it? (Y/n)N
+    File not replaced
+    >> metadataframe.iloc[-5:-1]
+          Flag         Filename     ESO label Angle Pol. Type Exp. Time Airmass  \
+    24  polstd  SCIENCE_84.fits  PMOS_NGC2024     0       lin   19.9985   1.095
+    25  polstd  SCIENCE_85.fits  PMOS_NGC2024  22.5       lin   19.9922  1.0945
+    26  polstd  SCIENCE_86.fits  PMOS_NGC2024    45       lin   19.9986   1.094
+    27  polstd  SCIENCE_87.fits  PMOS_NGC2024  67.5       lin   20.0026   1.093
+
+       1/gain  RON      Grism  Bin                     Date
+    24    0.7  2.9  GRIS_300V  2x2  2011-12-23T03:44:59.590
+    25    0.7  2.9  GRIS_300V  2x2  2011-12-23T03:46:04.915
+    26    0.7  2.9  GRIS_300V  2x2  2011-12-23T03:47:09.870
+    27    0.7  2.9  GRIS_300V  2x2  2011-12-23T03:48:15.905
+    >> metadataframe.info()
+    <class 'pandas.core.frame.DataFrame'>
+    Int64Index: 29 entries, 0 to 28
+    Data columns (total 12 columns):
+    Flag         8 non-null object
+    Filename     29 non-null object
+    ESO label    29 non-null object
+    Angle        29 non-null object
+    Pol. Type    23 non-null object
+    Exp. Time    29 non-null object
+    Airmass      29 non-null object
+    1/gain       29 non-null object
+    RON          29 non-null object
+    Grism        29 non-null object
+    Bin          29 non-null object
+    Date         29 non-null object
+    dtypes: object(12)
+    memory usage: 2.9+ KB
+
+
+    Notes
+    -----
+    The files whose headers we will look at must have ".fits" in the name, cannot be "dSCIENCE" or "cal_" files.
+    (This is to do with the notation used throughout the FUSS package both in the IRAF and python scripts)
+
+    Attributes
+    ----------
+    clobber_flag : bool or None
+        Whether or not to clobber the output_file if it exists. Initiated as "None".
+    output : str
+        Name of the output file
+    path : str
+        Path to the location of the images the metadata should be read from. Default: "./".
+    target_flag : str
+        String present in ESO labels that uniquely identifies the target.
+    zeropol_flag : str
+        String present in ESO labels that uniquely identifies the zero polarisation standard.
+    polstd_flag : str
+        String present in ESO labels that uniquely identifies the polarised standard.
+    sorted_files : list of str
+        Sorted list containing the names of the files whose headers we want to look at.
+    data : pandas.core.frame.DataFrame
+        Data frame containing the meta data.
+        Columns: ['Flag', 'Filename', 'ESO label', 'Angle', 'Pol. Type', 'Exp. Time', 'Airmass', '1/gain', 'RON', 'Grism', 'Bin', 'Date']
+
+    Methods
+    -------
+    _write_out()
+        Writes to file
+    _clobber_flag()
+        Sets the clobber file to True or False if it has not been set on initiation.
+    _flag()
+        Writes the corresponding flags to each rows. Either 'tar', 'zpol' or 'polstd'
+    _read_headers()
+        Reads the fits headers and fills the info attribute data frame.
+
+
+    """
     def __init__(self, path = "./", output_file = 'metadata',
-                 target_name='CCSN', zeropol_name='Zero_', polstd_name='NGC2024',
-                 clobber = None):
+                 target_flag='CCSN', zpol_flag='Zero_', polstd_flag='NGC2024',
+                 clobber = None, make_file = True):
+
+        """
+        Initiates MetaData object
+
+        Parameters
+        ----------
+        path : str, optional
+            path to the location of the images the metadata should be read from. Default: "./".
+        output_file : str, optional
+            path to the output file where the data frame containing metadata will be written. Default: 'metadata'.
+        target_flag : str, optional
+            String present in ESO labels that uniquely identifies the target.
+        zpol_flag : str, optional
+            String present in ESO labels that uniquely identifies the zero polarisation standard.
+        polstd_flag : str, optional
+            String present in ESO labels that uniquely identifies the polarised standard.
+        clobber : bool, optional
+            If a file "output_file" already exists, whether to replace it or not. Default: False.
+
+        Returns
+        -------
+        None
+        """
 
         self.clobber_flag = clobber
         self.output = output_file
         self.path = path
-        self.target_flag = target_name
-        self.zeropol_flag = zeropol_name
-        self.polstd_flag = polstd_name
+        self.target_flag = target_flag
+        self.zeropol_flag = zpol_flag
+        self.polstd_flag = polstd_flag
 
         # We want to make sure that python reads the images in the right order, we also only need to look at the headers
         # of the original images with name format SCIENCE_##.fits where ## is a 2 or 3 digit number.
@@ -354,30 +521,39 @@ class MetaData(object):
                                if 'fits' in filename and 'ms' not in filename
                                and 'dSCIENCE' not in filename and 'cal' not in filename])
 
-        self.info = pd.DataFrame(columns = ['Flag', 'Filename', 'ESO label', 'Angle', 'Pol. Type',
+        self.data = pd.DataFrame(columns = ['Flag', 'Filename', 'ESO label', 'Angle', 'Pol. Type',
                                             'Exp. Time', 'Airmass', '1/gain',
                                             'RON', 'Grism', 'Bin', 'Date'])
 
         self._read_headers()  # read headers and fills the dataframce
         self._flag()  # to flag targets and pol standards
+        if make_file is False:
+            return
+
         self._write_out()  # writes it out to a file
         return
 
     def _write_out(self):
+        """
+        Writes to file
+        """
         if not os.path.isfile(self.output):
-            self.info.to_csv(self.output, sep='\t', index=False)
+            self.data.to_csv(self.output, sep='\t', index=False)
             print("File Created")
             return
         else:
             self._clobber_flag()
             if self.clobber_flag is True:
                 os.remove(self.output)
-                self.info.to_csv(self.output, sep='\t', index=False)
+                self.data.to_csv(self.output, sep='\t', index=False)
                 print("File replaced")
             if self.clobber_flag is False:
                 print("File not replaced")
 
     def _clobber_flag(self):
+        """
+        Sets the clobber file to True or False if it has not been set on initiation.
+        """
         while self.clobber_flag is None:
             clobber = input("The Meta Data file "+self.output+" already exists. Would you like to replace it? (Y/n)")
             if clobber in ['n', 'N', 'no', 'no']:
@@ -386,43 +562,49 @@ class MetaData(object):
                 self.clobber_flag = True
 
     def _flag(self):
-        for i in range(len(self.info['ESO label'])):
-            if self.target_flag in self.info.loc[i,'ESO label']:
-                self.info.loc[i, 'Flag'] = 'tar'
-            elif self.zeropol_flag in self.info.loc[i,'ESO label']:
-                self.info.loc[i, 'Flag'] = 'zpol'
-            elif self.polstd_flag in self.info.loc[i,'ESO label']:
-                self.info.loc[i, 'Flag'] = 'polstd'
+        """
+        Writes the corresponding flags to each rows. Either 'tar', 'zpol' or 'polstd'
+        """
+        for i in range(len(self.data['ESO label'])):
+            if self.target_flag in self.data.loc[i,'ESO label']:
+                self.data.loc[i, 'Flag'] = 'tar'
+            elif self.zeropol_flag in self.data.loc[i,'ESO label']:
+                self.data.loc[i, 'Flag'] = 'zpol'
+            elif self.polstd_flag in self.data.loc[i,'ESO label']:
+                self.data.loc[i, 'Flag'] = 'polstd'
 
     def _read_headers(self):
+        """
+        Reads the fits headers and fills the info attribute data frame.
+        """
         for i in range(len(self.sorted_files)):
             filename = self.sorted_files[i]
-            self.info.loc[i, 'Filename'] = filename
+            self.data.loc[i, 'Filename'] = filename
             # Here we go through the headers and take out the information that we need to create the fits files.
             # I think the header names and variable names are explicit enough
             hdulist = fits.open(self.path+filename)
 
             exptime = hdulist[0].header['EXPTIME']
-            self.info.loc[i,'Exp. Time'] = exptime
+            self.data.loc[i,'Exp. Time'] = exptime
 
             binx = hdulist[0].header['HIERARCH ESO DET WIN1 BINX']
             biny = hdulist[0].header['HIERARCH ESO DET WIN1 BINY']
             binning = str(binx) + "x" + str(biny)
-            self.info.loc[i,'Bin'] = binning
+            self.data.loc[i,'Bin'] = binning
 
             #size_x = hdulist[0].header['HIERARCH ESO DET OUT1 NX']
 
             one_over_gain = hdulist[0].header['HIERARCH ESO DET OUT1 CONAD']
-            self.info.loc[i,'1/gain'] = one_over_gain
+            self.data.loc[i,'1/gain'] = one_over_gain
 
             ron = hdulist[0].header['HIERARCH ESO DET OUT1 RON']  # Read Out Noise
-            self.info.loc[i,'RON'] = ron
+            self.data.loc[i,'RON'] = ron
 
             try:
                 grism = hdulist[0].header['HIERARCH ESO INS GRIS1 NAME']
             except KeyError:
                 grism = 'None'
-            self.info.loc[i,'Grism'] = grism
+            self.data.loc[i,'Grism'] = grism
             poltype = None
             try:
                 angle = hdulist[0].header['HIERARCH ESO INS RETA2 ROT']
@@ -438,17 +620,17 @@ class MetaData(object):
                     except KeyError:
                         angle = 'None'
 
-            self.info.loc[i,'Angle'] = angle
-            self.info.loc[i,'Pol. Type'] = poltype
+            self.data.loc[i,'Angle'] = angle
+            self.data.loc[i,'Pol. Type'] = poltype
 
             date = hdulist[0].header['DATE-OBS']
-            self.info.loc[i,'Date'] = date
+            self.data.loc[i,'Date'] = date
 
             try:
                 esoname = hdulist[0].header['HIERARCH ESO OBS NAME']
             except KeyError:
                 esoname = 'None'
-            self.info.loc[i,'ESO label'] = esoname
+            self.data.loc[i,'ESO label'] = esoname
 
             if "fits" and "SCIENCE" in filename:
                 head = hdulist[0].header['HIERARCH ESO DPR TYPE']
@@ -462,14 +644,45 @@ class MetaData(object):
             else:
                 airm = 'None'
 
-            self.info.loc[i,'Airmass'] = airm
+            self.data.loc[i,'Airmass'] = airm
 
 
 # ################# LINEAR SPECPOL ####################### #
 class SpecPol(object):
+    """
+    Base class for LinearSpecPol and CircularSpecPol.
+
+    Notes
+    -----
+    SpecPol is not particularly useful on its own, it is simply a basic framework of methods and attributes we
+    need for both linear and circular polarimetry calculations.
+
+    Attributes
+    ---------
+    metadata : pandas.core.frame.DataFrame
+        Data frame containing the metadata as built by MetaData. Can be initiated from tab separated file containing
+        the data frame or from the data frame directly.
+    oray : str
+        Which aperture flag that corresponds to the ordinary ray files. In our naming convention the flag can be either
+        'ap1' or 'ap2'.
+    eray : str
+        Which aperture flag that corresponds to the extra-ordinary ray files. In our naming convention the flag can be
+        either 'ap1' or 'ap2'.
+    bin_size : int or None
+        Size of the bins in Angstrom if rebinning. Otherwise None.
+    snrplot : bool
+        Whether or not to plot the signal to noise ratio plots (expectd and calculated -- to check how well a job the
+        binning did). Default is False.
+    pol_file : Initiated as None
+        Name of the output polarisation file. Will be defined through user input.
+    flag : Initiated as None
+        Flag to focus on in the metadata: 'tar', 'zpol' or 'polstd'. Defined in the calculate() method of LinearSpecPol
+        and CircularSpecPol
+    """
 
     def __init__(self, oray='ap2', metadata = 'metadata', bin_size=None,
                  snrplot=False):
+
         if oray == 'ap2':
             self.oray, self.eray = 'ap2', 'ap1'
         elif oray == 'ap1':
@@ -480,14 +693,24 @@ class SpecPol(object):
             self.metadata = pd.read_csv(metadata, sep='\t')
         elif isinstance(metadata, pd.core.frame.DataFrame):
             self.metadata = metadata
+
         self.bin_size=bin_size
         self.snrplot = snrplot
         self.pol_file = None
         self.flag = None
 
     def _flux_diff_from_file(self, files, check_bin=False):
-        # keeping this as separate function because making instance within the function means they can be forgotten
-        # when come out of it and not take up too much memory
+        """
+        Calculates the normalised flux differences from files.
+
+        Parameters
+        ----------
+        files : list of str
+            list of files
+        check_bin : bool
+            Whether to check the binning with snr plots.
+
+        """
 
         # Extracting polarised fluxes of o and e ray and their errors according to filenames
         for filename in files:
@@ -522,6 +745,18 @@ class SpecPol(object):
         return self.wl_bin, F, F_r
 
     def _list_files(self, angle, linpol = True, fileloc='.'):
+        """
+        Creates list of files of interest.
+
+        Parameters
+        ----------
+        angle : float
+            Which HWRP angle we are interested in.
+        linpol : bool, optional
+            Whether we are doing linear (True) or circular (False) polarisation. Default is True.
+        fileloc : str
+            Path to location of files. Usually will be '.' so this is the default.
+        """
         if linpol is True:
             poltype = 'lin'
         else:
@@ -543,6 +778,10 @@ class SpecPol(object):
         return mylist
 
     def _check_binning(self, fo, fe, fo_r, fe_r, bin_fo, bin_fe, bin_fo_r, bin_fe_r):
+        """
+        This performs a few checks on the binning: Calculates expected values of SNR and compares to the values of
+        SNR after binning: does the median and the values at central wavelength. Also produces a plot of whole spectrum
+        """
         snr_not_binned = np.array((fo + fe) / np.sqrt(fo_r ** 2 + fe_r ** 2))
         snr_expected = snr_not_binned * np.sqrt(self.bin_size / (self.wl[1] - self.wl[0]))
         ind_not_binned_central_wl = int(np.argwhere(self.wl == min(self.wl, key=lambda x: abs(x - 6204)))[0])
@@ -580,9 +819,96 @@ class SpecPol(object):
         return
 
 
-
 class LinearSpecPol(SpecPol):
+    """
+    class for Linear sepctropolarimetry reduction. Inherits from SpecPol
 
+    Examples
+    --------
+    >> import FUSS.datred as r
+    >> import pandas as pd
+    >> metadataframe = pd.read_csv('metadata', sep='\t') # or can just feed a freshly created Meta.data data frame
+    >> pol = r.LinearSpecPol(metadata = metadataframe, bin_size = 15)
+    >> poldataframe = pol.calculate() # One full set of specpol data (4 images and 4 files to rebin per image)
+    Binning to  15 Angstrom
+    Index Error at  9316.2 # This can happen on the last bin and isn't a problem. If it is in the middle of the spcetrum
+    Index Error at  9326.1 # then you should look into it.
+    Index Error at  9316.2
+    Index Error at  9326.1
+
+    ======== BEFORE BINNING ======
+    MEDIAN SNR
+    86.6505323611
+    CENTRAL SNR at ( 6204.3  A)
+    117.809391701
+    ======== AFTER BINNING ======
+    MEDIAN SNR / EXPECTED
+    185.294052885 184.73955572
+    CENTRAL SNR / EXPECTED (at  6204.3  A)
+    250.397252588 251.17046704
+
+
+    Binning to  15 Angstrom
+    Index Error at  9316.2
+    Index Error at  9326.1
+    Index Error at  9316.2
+    Index Error at  9326.1
+    Binning to  15 Angstrom
+    Index Error at  9316.2
+    Index Error at  9326.1
+    Index Error at  9316.2
+    Index Error at  9326.1
+    Binning to  15 Angstrom
+    Index Error at  9316.2
+    Index Error at  9326.1
+    Index Error at  9316.2
+    Index Error at  9326.1
+
+    What do you want to name the polarisation file? [filename] # the file created will be filename.pol
+    >> poldataframe.info()
+    <class 'pandas.core.frame.DataFrame'>
+    RangeIndex: 421 entries, 0 to 420
+    Data columns (total 10 columns):
+    wl            421 non-null float64
+    p             421 non-null float64
+    p_r           421 non-null float64
+    q             421 non-null float64
+    q_r           421 non-null float64
+    u             421 non-null float64
+    u_r           421 non-null float64
+    theta         421 non-null float64
+    theta_r       421 non-null float64
+    delta_eps0    421 non-null float64
+    dtypes: float64(10)
+    memory usage: 33.0 KB
+
+    Attributes
+    ----------
+    wl : 1D np.array
+        Initiated as None. Will contains original wavelength bins
+    wl_bin : 1D np.array
+        Initiated as None. Will contain the binned wavelength. If bin_size is None then wl_bin will == wl.
+    poldata : pandas.core.frame.DataFrame
+       Initiated with columns: 'wl', 'p', 'p_r', 'q', 'q_r', 'u', 'u_r', 'theta', 'theta_r' and dtype='float64'
+       delta_epsilon# (# being a number) will be added for delta epsilon spectra corresponding to each set of 4
+       Half Wave Retarder Plate Angles.
+    flag : str
+        Flag corresponding to object of interest  in the metadata data frame column "Flag".
+        Initiated as None and defined in the method calculate() to specify which object to do the specpol on
+        (the target, the zero polarisation standard or the polarisation standard -- usually 'tar', 'zpol', 'polstd',
+        respectively)
+
+    Methods
+    -------
+    calculate()
+        Calculates the Stokes parameters, degree and angle polarisation from ordinary and extra-ordinary ray fluxes.
+        Creates an output file containing the poldata data frame (filled by this method)
+    plot()
+        Plots the Stokes parameters, degree and angle of polarisation calculated.
+    _get_data()
+    _linspecpol()
+    + inherited from SpecPol
+    """
     def __init__(self, oray='ap2', metadata = 'metadata',
                  bin_size=None, snrplot=False):
         SpecPol.__init__(self, oray, metadata,bin_size, snrplot)
@@ -590,9 +916,30 @@ class LinearSpecPol(SpecPol):
         self.wl_bin = None
         self.poldata = pd.DataFrame(columns = ['wl', 'p', 'p_r', 'q', 'q_r',
                                                'u', 'u_r', 'theta', 'theta_r'], dtype='float64')
+        self.flag = None
 
     def calculate(self, flag='tar'):
+        """
+        Calculates the Stokes parameters, degree and angle polarisation, their errors and delta_epsilon for each set
+        from the ordinary and extra-ordinary ray fluxes.
 
+        Notes
+        -----
+        Creates an output file containing the poldata data frame (filled by this method)
+
+        Parameters
+        ----------
+        flag : str
+            Which flag to look for in the "Flag" column of metadata. Default is 'tar' which identifies target data.
+            'zpol' can be used for zero pol. standard and 'polstd' for the polarisation standard.
+            Custom flags can be input if you have written your own in the "Flag" column of the metadata Data Frame
+
+        Returns
+        -------
+        poldata : pandas.core.frame.DataFrame
+            Contains the polarisation data frame.
+            columns = ['wl', 'p', 'p_r', 'q', 'q_r', 'u', 'u_r', 'theta', 'theta_r'], dtype='float64'
+        """
         self.flag = flag
         # Now getting the data from the files in lists that will be used by the specpol() function.
         ls_F0, ls_F0_r, ls_F1, ls_F1_r, ls_F2, ls_F2_r, ls_F3, ls_F3_r = self._get_data()
@@ -740,12 +1087,18 @@ class LinearSpecPol(SpecPol):
 
         plt.show()
 
-
     def _get_data(self):
         """
         This takes the flux data from the text files given by IRAF and sorts them in lists for later use.
 
-        """
+        Returns
+        -------
+        tuple of 8 lists
+            Each list corresponds to the normalised flux difference for a given HWRP angle or its error.
+            Each lsit contains N 1D numpy arrays containing N noral;ised flux differences spectra (or error), one
+            for each set of spectropolarimetric data.
+
+         """
 
         # Need to do this because python doesn't read files in alphabetical order but in order they
         # are written on the disc
@@ -803,26 +1156,20 @@ class LinearSpecPol(SpecPol):
 
         return ls_F0, ls_F0_r, ls_F1, ls_F1_r, ls_F2, ls_F2_r, ls_F3, ls_F3_r
 
-
     def _linspecpol(self, F0, F0_r, F1, F1_r, F2, F2_r, F3, F3_r):
         """
-        Finds the p, q, u, theta and errors on these quantities for a set of spectropolarimetric data.
-
-        Notes
-        -----
-        For lin_specpol() use only
+        Calculates the spectropolarimetric data from the normalised flux differences.
 
         Parameters
         ----------
-        wl : array
-            Wavelengths
-
+        Eight 1D numpy arrays
+            The normalised flux differences (and errors) for each HWRP angle.
 
         Returns
         -------
         arrays
             p, q, and u in percent, with associated errors, as well as theta in degrees ( 0 < theta < 180) and its
-            errors.
+            errors, and delta epsilon (see Maund 2008)
         """
 
         # Now Stokes parameters and degree of pol.
@@ -868,8 +1215,41 @@ class LinearSpecPol(SpecPol):
         return pf, p_r * 100, qf, q_r * 100, uf, u_r * 100, theta, theta_r, delta_e
 
 
-class CircSpecPol(SpecPol):
+class CircularSpecPol(SpecPol):
+    """
+    class for Circular sepctropolarimetry reduction. Inherits from SpecPol
 
+    Examples
+    --------
+    Similar to LinearSpecpol examples.
+
+    Attributes
+    ----------
+    wl : 1D np.array
+        Initiated as None. Will contains original wavelength bins
+    wl_bin : 1D np.array
+        Initiated as None. Will contain the binned wavelength. If bin_size is None then wl_bin will == wl.
+    poldata : pandas.core.frame.DataFrame
+       Initiated with columns: 'wl', 'p', 'p_r', 'q', 'q_r', 'u', 'u_r', 'theta', 'theta_r' and dtype='float64'
+       delta_epsilon# (# being a number) will be added for delta epsilon spectra corresponding to each set of 4
+       Half Wave Retarder Plate Angles.
+    flag : str
+        Flag corresponding to object of interest  in the metadata data frame column "Flag".
+        Initiated as None and defined in the method calculate() to specify which object to do the specpol on
+        (the target, the zero polarisation standard or the polarisation standard -- usually 'tar', 'zpol', 'polstd',
+        respectively)
+
+    Methods
+    -------
+    calculate()
+        Calculates the Stokes parameters, degree and angle polarisation from ordinary and extra-ordinary ray fluxes.
+        Creates an output file containing the poldata data frame (filled by this method)
+    plot()
+        Plots the Stokes parameters, degree and angle of polarisation calculated.
+    _get_data()
+    _circspecpol()
+    + inherited from SpecPol
+    """
     def __init__(self, oray='ap2', metadata = 'metadata',
                  bin_size=None, snrplot=False):
         SpecPol.__init__(self, oray, metadata, bin_size, snrplot)
@@ -878,6 +1258,25 @@ class CircSpecPol(SpecPol):
         self.poldata = pd.DataFrame(columns = ['wl', 'v', 'v_r'], dtype='float64')
 
     def calculate(self, flag='tar'):
+        """
+        Calculates the Stokes v, its error and epsilon from the ordinary and extra-ordinary ray fluxes.
+
+        Notes
+        -----
+        Creates an output file containing the poldata data frame (filled by this method)
+
+        Parameters
+        ----------
+        flag : str
+            Which flag to look for in the "Flag" column of metadata. Default is 'tar' which identifies target data.
+            'zpol' can be used for zero pol. standard and 'polstd' for the polarisation standard.
+            Custom flags can be input if you have written your own in the "Flag" column of the metadata Data Frame
+
+        Returns
+        -------
+        poldata : pandas.core.frame.DataFrame
+            Contains the polarisation data frame. columns = ['wl', 'v', 'v_r'], dtype='float64'
+        """
 
         self.flag = flag
         # Now getting the data from the files in lists that will be used by the specpol() function.
@@ -923,7 +1322,14 @@ class CircSpecPol(SpecPol):
         """
         This takes the flux data from the text files given by IRAF and sorts them in lists for later use.
 
-        """
+        Returns
+        -------
+        tuple of 4 lists
+            Each list corresponds to the normalised flux difference for a given HWRP angle or its error.
+            Each lsit contains N 1D numpy arrays containing N noral;ised flux differences spectra (or error), one
+            for each set of spectropolarimetric data.
+
+         """
         files_45_deg = SpecPol._list_files(self, 45.0, linpol=False)
         files_315_deg = SpecPol._list_files(self, 315, linpol=False)
 
@@ -963,7 +1369,18 @@ class CircSpecPol(SpecPol):
         return ls_F0, ls_F0_r, ls_F1, ls_F1_r
 
     def _circspecpol(self, F0, F0_r, F1, F1_r):
+        """
+        Calulates the circular polarisation from the normalised flux differences
 
+        Parameters
+        ----------
+        Four 1D numpy arrays
+            The normalised flux differences (and errors) for each HWRP angle.
+
+        Returns
+        -------
+        v, v_r and epsilon
+        """
         # Now Stokes parameters and degree of pol.
         v = 0.5 * (F0 - F1)
         v_r = 0.5*np.sqrt(F0_r**2 + F1_r**2)
@@ -1016,8 +1433,7 @@ class CircSpecPol(SpecPol):
         plt.show()
 
 
-# ################## FOR BACKWARDS COMPATIBILITY THE FOLLOWING IS KEPT IN DATRED.PY UNTOUCHED ##########################
-# ### copies of flux_diff_from_file() and check_binning to go into lin_specpol ######
+# ##################  THE FOLLOWING IS FOR BACKWARDS COMPATIBILITY ONLY##########################
 
 def info():
     """
