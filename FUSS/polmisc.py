@@ -71,6 +71,7 @@ from astropy.io import fits
 import datetime as dt
 from FUSS import isp as isp
 import sys
+import pandas as pd
 
 if sys.version_info.major < 3:
     range = xrange
@@ -133,7 +134,7 @@ def get_spctr(filename, wlmin=0, wlmax=100000, err=False, scale=True):
 
 def get_pol(filename, wlmin=0, wlmax=100000):
     """
-    Imports values from polarisation files (given by specpol routine).
+    Imports values from polarisation files (given by the old specpol routine in datred (pre Dec 2017)).
 
     Notes
     -----
@@ -171,7 +172,6 @@ def get_pol(filename, wlmin=0, wlmax=100000):
 
 
 def dopcor(val, z):
-    # TODO: Create test
     """
     Doppler Correction.
 
@@ -198,14 +198,18 @@ def dopcor(val, z):
 
 
 def dopcor_file(filename, z):
-    # TODO: update dosctring
-    # TODO: Create test
     """
     Doppler Correction of data from a file (filename), into another file (output)
-    :param filename: File containing the data to be Doppler corrected, the firsty column MUST contain the wavelength bins
-    :param z: Redshift
-    :return: 
+
+    Parameters
+    ----------
+    filename : str
+        Name of the file where the data to be doppler corrected is
+    z : float
+        Redshift
+
     """
+
     output = 'dc_' + filename
     os.system('cp -i ' + filename + ' ' + output)
     f = file(output, 'r+')
@@ -231,14 +235,21 @@ def dopcor_file(filename, z):
 
 
 def rot_data(q, u, theta):
-    # TODO: update dosctring
-    # TODO: Create test
     """
-    Rotates data
-    :param q: X coordinate
-    :param u: Y coordinate
-    :param theta: Angle to rotate data by in rad.
-    :return:
+    Used to rotate Stokes parameters (or any 2D data set) by angle theta.
+
+    Parameters
+    ----------
+    q : 1D np.array
+
+    u : 1D np.array
+
+    theta : float
+
+    Returns
+    -------
+    Two 1D np.arrays: q rotated, u rotated
+
     """
     rot_matrix = np.array([[np.cos(theta), -np.sin(theta)],
                            [np.sin(theta), np.cos(theta)]])
@@ -258,17 +269,28 @@ def rot_data(q, u, theta):
 
 
 def norm_ellipse(xc, yc, a, b, theta, n):
-    # TODO: update dosctring
-    # TODO: Create test
     """
-    Creates ellipsoidal data set normally distributed around (xc,yc)
-    :param xc: x coordinate of center of ellipse
-    :param yc: y coordinate of center of ellipse
-    :param a: standard deviation of Gaussian that describes major axis.
-    :param b: standard deviation of Gaussian that describes minor axis
-    :param theta: Rotation angle in radians
-    :param n: Number of points created.
-    :return: Arrays x and y, containing the x and y values of the data created.
+    Creates ellipsoidal data set normally distributed around (xc,yc).
+
+    Parameters
+    ----------
+    xc : flaot
+        X coordinate of ellipse center
+    yc : float
+        Y coordinate of ellipse center
+    a : float
+        major axis
+    b : float
+        minor axis
+    theta :
+        Angle of ellipse
+    n : int
+        Number of points
+
+    Returns
+    -------
+    Two 1D np.arrays containing the x and y coordinates (respectively) of the data created.
+
     """
     i = 0
     x = np.array([])
@@ -287,10 +309,9 @@ def norm_ellipse(xc, yc, a, b, theta, n):
 
 
 def ep_date():
-    # TODO: update dosctring
     """
     Interactive Routine. Finds epoch from date or date from epoch given a maximum date.
-    :return:
+
     """
 
     # ####### Functions used by ep_date ########## #
@@ -342,10 +363,8 @@ def ep_date():
 
 
 def vel():
-    # TODO: update dosctring
     """
     Interactive routine. Finds the velocity for a given observed wavelength and rest wavelength.
-    :return:
     """
     cont = 'y'
     while cont == 'y' or cont == '':
@@ -455,20 +474,25 @@ class PolData(object):
     def __init__(self, poldata, name=' ', wlmin=None, wlmax=1000000):
 
         if type(poldata) is str:
-            pol0 = get_pol(poldata, wlmin=wlmin, wlmax=wlmax)
+            #TODO: test this bit
+            try:
+                pol0 = get_pol(poldata, wlmin=wlmin, wlmax=wlmax)
+                self.wlp, self.p, self.pr= pol0[0], pol0[1], pol0[2]
+                self.q , self.qr, self.u, self.ur, self.a, self.ar = pol0[3], pol0[4], pol0[5], pol0[6], pol0[7], pol0[8]
+            except:
+                poldf = pd.read_csv(poldata, sep='\t')
+                mask = (poldf['wl'].values > wlmin) & (poldf['wl'].values < wlmax)
+                self.wlp, self.p, self.pr = poldf['wl'].values[mask],  poldf['p'].values[mask],  poldf['p_r'].values[mask]
+                self.q, self.qr = poldf['q'].values[mask],  poldf['q_r'].values[mask]
+                self.u, self.ur = poldf['u'].values[mask],  poldf['u_r'].values[mask]
+                self.a, self.ar = poldf['theta'].values[mask],  poldf['theta_r'].values[mask]
+
         else:
             pol0 = poldata
+            self.wlp, self.p, self.pr= pol0[0], pol0[1], pol0[2]
+            self.q , self.qr, self.u, self.ur, self.a, self.ar = pol0[3], pol0[4], pol0[5], pol0[6], pol0[7], pol0[8]
 
         self.name = name
-        self.wlp = pol0[0]
-        self.p = pol0[1]
-        self.pr = pol0[2]
-        self.q = pol0[3]
-        self.qr = pol0[4]
-        self.u = pol0[5]
-        self.ur = pol0[6]
-        self.a = pol0[7]
-        self.ar = pol0[8]
         self.wlf = None
         self.f = None
         self.fr = None
