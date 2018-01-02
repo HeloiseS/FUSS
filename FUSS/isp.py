@@ -1,3 +1,13 @@
+"""
+2 - Jan - 2018 / H. F. Stevance / fstevance1@sheffield.ac.uk
+
+I put here all of the utility functions I use when removing ISP using various methods.
+
+All have unit test except debias() and from_range() as they are now obsolete to me (but they have been properly tested
+on writing them)
+"""
+
+from __future__ import print_function
 from __future__ import division
 import matplotlib.pyplot as plt
 import numpy as np
@@ -7,22 +17,33 @@ from FUSS import statistics as Fstat
 import math as m
 from scipy import special as special
 
-
+## This technique didn't work. Too reliant on user input
 def from_emline(filename_pol, filename_spctr, wlmin=4400, cont2ranges = False):
     """
     This function finds isp from one emission line. Requires interactive_range.def_ranges()
-    :param filename_pol: name of the file containing the polarisation data
-    :param filename_spctr: name of the file containing the flux data
-    :param wlmin: minimum wavelength cutoff for the data imported from the polarisation and flux spectrum files.
-    Default is 4400.
-    :param cont2ranges: Boolean. If the continuum is the be defined by 2 ranges of values on either side of the line,
-    set to True. If False, then the user should indicate the continuum by just two points on either side of the line.
-    Default is False.
-    :return: emline_wl, pol_isp, pol_cont
+
+    Parameters
+    ----------
+    filename_pol : str
+        path of the file containing the polarisation data (should be compatible with polmisc.PolData)
+    filename_spctr : str
+        path of the file containing the spectrum
+    wlmin : int, optional
+        Minimum wavelength cutoff in Angstrom. Default is 4400
+    cont2ranges : bool, optional
+        If the continuum is the be defined by 2 ranges of values on either side of the line,
+        set to True. If False, then the user should indicate the continuum by just two points on either side of the line.
+        Default is False.
+
+    Returns
+    -------
+    emline_wl, pol_isp, pol_cont
+
     """
+
     # importing the data
     flux = F.get_spctr(filename_spctr, wlmin=wlmin, scale = False, err = True)
-    pol = F.PolData('pol', filename_pol , wlmin=wlmin )
+    pol = F.PolData(filename_pol , wlmin=wlmin )
     scale = np.median(flux[1])  # scale factor used for plotting later
 
     # Need to define figure and plot the spectrum before calling ig.def_ranges()
@@ -120,22 +141,22 @@ def from_emline(filename_pol, filename_spctr, wlmin=4400, cont2ranges = False):
     
     emline_wl = [(start+end)/2, end-((start+end)/2)]
     if cont2ranges is True:
-        print "-------------------------- ISP from emission line ----------------------"
-        print "For the emission line in range {0:.0f} - {1:.0f} Ang".format(start, end)
-        print "With continuum defined by the ranges:"
-        print "{0:.0f} - {1:.0f} | center: {2:.1f}".format(min(cont_ranges[0].x), max(cont_ranges[0].x), cont_ranges[0].middle)
-        print "{0:.0f} - {1:.0f} | center: {2:.1f}".format(min(cont_ranges[1].x), max(cont_ranges[1].x), cont_ranges[1].middle)
-        print "\nWe find:"
-        print "ISP: p = {0:.3f} +/- {1:.3f} | q = {2:.3f} +/- {3:.3f} | u = {4:.3f} +/- {5:.3f}" .format(pisp, pisp_r,qisp, qisp_r,uisp,uisp_r)
-        print "Continuum: p = {0:.3f} +/- {1:.3f} | q = {2:.3f} +/- {3:.3f} | u = {4:.3f} +/- {5:.3f}" .format(pcont, pcont_r,qcont, qcont_r,ucont,ucont_r)
+        print( "-------------------------- ISP from emission line ----------------------")
+        print( "For the emission line in range {0:.0f} - {1:.0f} Ang".format(start, end))
+        print( "With continuum defined by the ranges:")
+        print( "{0:.0f} - {1:.0f} | center: {2:.1f}".format(min(cont_ranges[0].x), max(cont_ranges[0].x), cont_ranges[0].middle))
+        print( "{0:.0f} - {1:.0f} | center: {2:.1f}".format(min(cont_ranges[1].x), max(cont_ranges[1].x), cont_ranges[1].middle))
+        print( "\nWe find:")
+        print( "ISP: p = {0:.3f} +/- {1:.3f} | q = {2:.3f} +/- {3:.3f} | u = {4:.3f} +/- {5:.3f}" .format(pisp, pisp_r,qisp, qisp_r,uisp,uisp_r))
+        print( "Continuum: p = {0:.3f} +/- {1:.3f} | q = {2:.3f} +/- {3:.3f} | u = {4:.3f} +/- {5:.3f}" .format(pcont, pcont_r,qcont, qcont_r,ucont,ucont_r))
     else:
-        print "-------------------------- ISP from emission line ----------------------"
-        print "For the emission line in range {0:.0f} - {1:.0f} Ang".format(start, end)
-        print "With continuum defined by the points at:"
-        print "{0:.0f} and {1:.0f}".format(cont_ranges[0].x[0], cont_ranges[0].x[-1])
-        print "\nWe find:"
-        print "ISP: p = {0:.3f} +/- {1:.3f} | q = {2:.3f} +/- {3:.3f} | u = {4:.3f} +/- {5:.3f}" .format(pisp, pisp_r,qisp, qisp_r,uisp,uisp_r)
-        print "Continuum: p = {0:.3f} +/- {1:.3f} | q = {2:.3f} +/- {3:.3f} | u = {4:.3f} +/- {5:.3f}" .format(pcont, pcont_r,qcont, qcont_r,ucont,ucont_r)
+        print( "-------------------------- ISP from emission line ----------------------")
+        print( "For the emission line in range {0:.0f} - {1:.0f} Ang".format(start, end))
+        print( "With continuum defined by the points at:")
+        print( "{0:.0f} and {1:.0f}".format(cont_ranges[0].x[0], cont_ranges[0].x[-1]))
+        print( "\nWe find:")
+        print( "ISP: p = {0:.3f} +/- {1:.3f} | q = {2:.3f} +/- {3:.3f} | u = {4:.3f} +/- {5:.3f}" .format(pisp, pisp_r,qisp, qisp_r,uisp,uisp_r))
+        print( "Continuum: p = {0:.3f} +/- {1:.3f} | q = {2:.3f} +/- {3:.3f} | u = {4:.3f} +/- {5:.3f}" .format(pcont, pcont_r,qcont, qcont_r,ucont,ucont_r))
 
     return emline_wl, pol_isp, pol_cont
 
@@ -162,7 +183,7 @@ def from_range(filename_pol, wlmin=None, wlmax=None):
     tuple of floats
         pisp, pispr, qisp, qispr, uisp, uispr
     """
-    pol = F.PolData('pol', filename_pol , wlmin=3500 )
+    pol = F.PolData(filename_pol , wlmin=3500 )
     ls = [pol.q, pol.qr, pol.u, pol.ur]
     crop = []
     cond = (pol.wlp > wlmin) & (pol.wlp < wlmax)
@@ -195,22 +216,57 @@ def from_range(filename_pol, wlmin=None, wlmax=None):
         aisp = 180 + aisp  # Making sure P.A range is 0-180 deg
 
     if wlmin is None:
-        print "Range: {0:.0f} - {1:.0f}".format(isp_range[0].start, isp_range[0].end)
+        print( "Range: {0:.0f} - {1:.0f}".format(isp_range[0].start, isp_range[0].end))
     else:
-        print "Range: {0:.0f} - {1:.0f}".format(wlmin, wlmax)
+        print( "Range: {0:.0f} - {1:.0f}".format(wlmin, wlmax))
 
-    print "ISP found: \n qisp = " + str(qisp) + " +/- " + str(qispr) \
+    print( "ISP found: \n qisp = " + str(qisp) + " +/- " + str(qispr) \
           + "\n usip = " + str(uisp) + " +/- " + str(uispr) \
           + "\n pisp = " + str(pisp) + " +/- " + str(pispr) \
-          + "\n P.A isp = " + str(aisp) + " +/- " + str(aispr)
+          + "\n P.A isp = " + str(aisp) + " +/- " + str(aispr))
 
     return pisp, pispr, qisp, qispr, uisp, uispr
 
 
 def debias_p(p, pr, q=None, qr=None, u=None, ur=None, bayesian_pcorr = True, p0_step = 0.01):
+    """
+    (Borderline obsolete)
+    This includes the debiasing with a step function (Wang et al 1997 eq 3) and Bayesian debiasing (Quinn 2012)
+
+    Notes
+    -----
+    The function polmisc.pol_deg() does the setp function debiasing when calculating p. I don't use the Bayesian method
+    anymore as I've had issues with large values of polarisation leading to "inf" values in some of the distributions.
+
+    Parameters
+    ----------
+    p : 1D np.array
+        Degree off polarisation
+    pr : 1D np.array
+        Error on the degree off polarisation
+    q : 1D np.array
+        Stokes q
+    qr : 1D np.array, optional
+        Error on Stokes q
+    u : 1D np.array, optional
+        Stokes u
+    ur : 1D np.array, optional
+        Error on Stokes u
+    bayesian_pcorr : bool, optional
+        Default is True. If True then the Bayesian method will be used.
+    p0_step : float, optional
+        Step size to use in Bayesian debiasing. You can make it smaller if it doesn't work with the default (0.01) but
+        it will run for longer.
+
+    Returns
+    -------
+    pfinal : 1D np.array
+        The debiased values of p
+
+    """
     #  If bayesian_pcorr is False, P will be debiased as in Wang et al. 1997 using a step function
     if bayesian_pcorr is False:
-        print "Step Func - p correction"
+        print( "Step Func - p correction")
         pfinal = np.array([])
         for ind in range(len(p)):
             condition = p[ind] - pr[ind]
@@ -225,7 +281,7 @@ def debias_p(p, pr, q=None, qr=None, u=None, ur=None, bayesian_pcorr = True, p0_
     #  If bayesian_pcorr is True, P will be debiased using the Bayesian method described by J. L. Quinn 2012
     #  the correceted p is pbar_{0,mean} * sigma. pbar_{0,mean} is given by equation 47 of J. L. Quinn 2012
     if bayesian_pcorr is True:
-        print "Bayesian - p correction"
+        print( "Bayesian - p correction")
         sigma = (qr + ur)/2
         pbar = p/sigma
         pfinal = np.array([])
@@ -244,23 +300,48 @@ def debias_p(p, pr, q=None, qr=None, u=None, ur=None, bayesian_pcorr = True, p0_
         return pfinal
 
 
-def linear_isp(wlp, gradq, constq, gradu, constu, covq=0, covu=0, q=None, qr=None, u=None, ur=None, bayesian_pcorr=False, p0_step = 0.01):
+def linear_isp(wlp, gradq, constq, gradu, constu, covq=0, covu=0,
+               q=None, qr=None, u=None, ur=None, bayesian_pcorr=False, p0_step = 0.01):
     """
     Calculates a linear isp and can also remove it from polarisation data if provided
-    :param wlp: 1D Array of wavelength bins of final desired isp (often the wavelength bins fo your pol data)
-    :param gradq: [gradient of q isp, error on gradient]
-    :param constq: [intercept of q isp, error on intercept]
-    :param gradu: [gradient of u isp, error on gradient]
-    :param constu: [intercept of u isp, error on intercept]
-    :param q: Stokes q of pol data you want to correct for isp. Default is None.
-    :param qr: Err on Stokes q of pol data you want to correct for isp. Default is None.
-    :param u: Stokes u of pol data you want to correct for isp. Default is None.
-    :param ur: Err on Stokes u of pol data you want to correct for isp. Default is None.
-    :param bayesian_pcorr: Boolean. If the data is being corrected for ISP and p debiasing should be done using
-    the bayesian aproach set to True. Default is False.
-    :return: If polarisation data not provided, only returns the array isp = [qisp, qisp_r, uisp, uisp_r],
-    if data provided returns new_stokes = [wlp, pisp, pispr error, qisp, qisp error, uisp, uisp error,
-    pol angle, pol angle error], and then isp = [qisp, qisp_r, uisp, uisp_r].
+
+    Parameters
+    ----------
+    wlp : 1D np.array
+        Wavelength bins of final desired isp (often the wavelength bins fo your pol data)
+    gradq : list of 2 floats
+        [gradient of q isp, error on gradient]
+    constq : list of 2 floats
+        [intercept of q isp, error on intercept]
+    gradu : list of 2 floats
+        [gradient of u isp, error on gradient]
+    constu : list of 2 floats
+        [intercept of u isp, error on intercept]
+    covq : float , optional
+        Covariance(q, wl). Default is 0.
+    covu : float , optional
+        Covariance(u, wl). Default is 0.
+    q : 1D np.array, optional
+        Stokes q of pol data you want to correct for isp. Default is None.
+    qr : 1D np.array, optional
+        Error on Stokes q of pol data you want to correct for isp. Default is None.
+    u : 1D np.array, optional
+        Stokes u of pol data you want to correct for isp. Default is None.
+    ur : 1D np.array, optional
+        Error Stokes u of pol data you want to correct for isp. Default is None.
+    bayesian_pcorr : bool, optional
+        Whether to do the p debiasing using the bayesian correction (True) of the step function (False).
+        Default is False.
+    p0_step : float
+        Step size to use in Bayesian debiasing. You can make it smaller if it doesn't work with the default (0.01) but
+        it will run for longer.
+
+    Returns
+    -------
+    First (If Stokes parameters not provided) or both lists (If Stokes parameters are provided)
+        - ISP =  [q ISP, q ISP err, u ISP, u ISP err]
+        - new_stokes = [wavelength bins, p, p err, q, q err, u, u err, angle, angle err] (all ISP removed)
+
     """
 
     qisp = np.array([])
@@ -277,7 +358,7 @@ def linear_isp(wlp, gradq, constq, gradu, constu, covq=0, covu=0, q=None, qr=Non
         qisp = np.append(qisp, gradq[0]*wl+constq[0])
         uisp = np.append(uisp, gradu[0]*wl+constu[0])
         qisp_r = np.append(qisp_r, np.sqrt((gradq[1]*wl)**2 + constq[1]**2)+2*wl*covq)
-        uisp_r = np.append(uisp_r, np.sqrt((gradu[1]*wl)**2 + constu[1]**2)+2*wl*covq)
+        uisp_r = np.append(uisp_r, np.sqrt((gradu[1]*wl)**2 + constu[1]**2)+2*wl*covu)
 
     isp = [qisp, qisp_r, uisp, uisp_r]
 
@@ -316,20 +397,41 @@ def linear_isp(wlp, gradq, constq, gradu, constu, covq=0, covu=0, q=None, qr=Non
 
     return new_stokes, isp
 
+
 def const_isp(wlp, qisp, qispr, uisp, uispr, q, qr, u, ur, bayesian_pcorr=False, p0_step=0.01):
     """
     Removes single valued (constant with wavelength) isp from data
-    :param wlp: wavelength bins of the data
-    :param qisp: stokes params of the isp
-    :param qispr:
-    :param uisp:
-    :param uispr:
-    :param q: stokes params of the data
-    :param qr:
-    :param u:
-    :param ur:
-    :return: new_stokes = [wlp, new p, new p error, new q, new q error, new u, new u error,
-    new pol angle, new pol angle error]
+
+    Parameters
+    ----------
+    wlp : 1D np.array
+        Wavelength bins of the data
+    qisp : 1D np.array
+        Stokes q of ISP
+    qispr : 1D np.array
+        Error on Stokes q of ISP
+    uisp : 1D np.array
+        Stokes u of ISP
+    uispr : 1D np.array
+        Error on Stokes u of ISP
+    q : 1D np.array
+        Stokes q of the target data
+    qr : 1D np.array
+        Error on Stokes q of the target data
+    u : 1D np.array
+        Stokes u of the target data
+    ur : 1D np.array
+        Error on Stokes u of the target data
+    bayesian_pcorr : bool, optional
+        Default is True. If True then the Bayesian method will be used.
+    p0_step : float, optional
+        Step size to use in Bayesian debiasing. You can make it smaller if it doesn't work with the default (0.01) but
+        it will run for longer.
+
+    Returns
+    -------
+    List of ISP removed quantities= [wavelength bins, p, p error, q, q error, u, u error, angle, angle error]
+
     """
     
     newq = q - qisp

@@ -45,6 +45,7 @@ import re
 import pandas as pd
 import sys
 
+
 if sys.version_info.major < 3:
     range = xrange
     input = raw_input
@@ -398,6 +399,7 @@ def F_from_oeray(fo, fe, fo_r, fe_r):
     F_r = abs(F) * np.sqrt( ((fo_r ** 2) + (fe_r ** 2)) * ( (1 / (fo - fe) ** 2) + (1 / (fo + fe) ** 2)) )
 
     return F, F_r
+
 
 
 class Meta(object):
@@ -1431,6 +1433,64 @@ class CircularSpecPol(SpecPol):
 
         plt.show()
 
+
+def mk_flx_spctr(metadata = 'metadata', fileloc='.', flag = 'tar', output = None, header = True, front="1D_c_d"):
+    """
+    Combines all the flux calibrated apertures to create the flux spectrum.
+
+    Notes
+    -----
+    Creates a text file with 3 columns columns: wavelength flux errors
+    """
+    if isinstance(metadata, str):
+        metadataframe = pd.read_csv(metadata, sep='\t')
+
+    assert "Filename" in list(metadataframe), "Are you sure "+metadata+" is a (or location to a) Meta Data frame? "
+
+    fluxdata = pd.DataFrame(columns=['wl', 'f', 'f_r'], dtype='float64')
+
+    if output is None:
+        output = input('What do you want to call the output file? ')
+    output += ".flx"
+
+    files = [str(metadataframe.loc[i,"Filename"])[:-5] for i in xrange(len(metadataframe["Filename"])) \
+                  if metadataframe.loc[i, 'Flag'] == flag ]
+
+    file_list1 = [front+filename+"_ap1.txt" for filename in files]
+    file_list1r = [front+filename+"_ap1_err.txt" for filename in files]
+    file_list2 = [front+filename+"_ap2.txt" for filename in files]
+    file_list2r = [front+filename+"_ap2_err.txt" for filename in files]
+    file_list = file_list1 + file_list1r + file_list2 + file_list2r
+
+    for filename in file_list:
+
+        if 'err' in filename:
+            wl, fr = np.loadtxt(filename, unpack=True, usecols=(0, 1))
+
+            if len(fluxdata['wl']) == 0:
+                fluxdata['wl'] = wl
+                fluxdata.fillna(value=0, inplace=True)
+
+            fluxdata['f_r'] += fr**2
+
+        if 'err' not in filename:
+            wl, f = np.loadtxt(filename, unpack=True, usecols=(0, 1))
+            if len(fluxdata['wl']) == 0:
+                fluxdata['wl'] = wl
+                fluxdata.fillna(value=0, inplace=True)
+
+            fluxdata['f'] += f
+
+    fluxdata['f_r'] = np.sqrt(fluxdata['f_r'])
+
+    try:
+        os.remove(output)
+    except OSError:
+        pass
+
+    fluxdata.to_csv(output, sep='\t', header = header, index=False)
+
+    return fluxdata
 
 # ##################  THE FOLLOWING IS FOR BACKWARDS COMPATIBILITY ONLY##########################
 

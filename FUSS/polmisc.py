@@ -1,4 +1,3 @@
-# TODO: Do I need to update this dosctring to have something show up in the documentation?
 """
 1 - Jan - 2018 / H. F. Stevance / fstevance1@sheffield.ac.uk
 
@@ -61,11 +60,9 @@ from __future__ import print_function
 import numpy as np
 import matplotlib.pyplot as plt
 import math as m
-from scipy.stats import kde
 import matplotlib.gridspec as gridspec
 from scipy.odr import ODR, Model, Data, RealData, odr, Output
 import os
-from astropy.io import fits
 import datetime as dt
 from FUSS import isp as isp
 import sys
@@ -79,7 +76,7 @@ if sys.version_info.major < 3:
 # ################## FUNCTIONS ###################### FUNCTIONS #################### FUNCTIONS ################# #
 
 
-def get_spctr(filename, wlmin=0, wlmax=100000, err=False, scale=True):
+def get_spctr(filename, wlmin=0, wlmax=100000, err=False, scale=True, skiprows = None ):
     """
     Imports spectrum.
 
@@ -108,7 +105,7 @@ def get_spctr(filename, wlmin=0, wlmax=100000, err=False, scale=True):
     """
 
     if err is False:
-        flux = np.loadtxt(filename, unpack=True, usecols=(0, 1))
+        flux = np.loadtxt(filename, unpack=True, usecols=(0, 1), skiprows=skiprows)
         cond = (flux[0] > wlmin) & (flux[0] < wlmax)
         wl = flux[0][cond]
         f = flux[1][cond]
@@ -130,7 +127,7 @@ def get_spctr(filename, wlmin=0, wlmax=100000, err=False, scale=True):
         return wl, f, r
 
 
-def get_pol(filename, wlmin=0, wlmax=100000):
+def get_pol(filename, wlmin=0, wlmax=100000, skiprows = None):
     """
     Imports values from polarisation files (given by the old specpol routine in datred (pre Dec 2017)).
 
@@ -158,7 +155,7 @@ def get_pol(filename, wlmin=0, wlmax=100000):
 
     """
 
-    pol0 = np.loadtxt(filename, unpack=True, usecols=(0, 1, 2, 3, 4, 5, 6, 7, 8))
+    pol0 = np.loadtxt(filename, unpack=True, usecols=(0, 1, 2, 3, 4, 5, 6, 7, 8),  skiprows=skiprows)
     pol = []
     cond = (pol0[0] > wlmin) & (pol0[0] < wlmax)  # pol0[0] should contain the wavelength bins
     for val in pol0:
@@ -695,16 +692,15 @@ class PolData(object):
         return self.qisp, self.qispr, self.uisp, self.uispr
 
     def add_isp(self, constisp_params = None, linearisp_params = None):
-        # TODO: I need 2 tests for this function
         """
         Adds parameters of isp to the data.
 
         Parameters
         ----------
-        constisp_params : tuple
+        constisp_params : list
             If the isp is constant give the stokes parameters of the isp here in a list:
         [qisp, qisp error, uisp , uisp error]
-        linearisp_params : tuple
+        linearisp_params : list
             Tuple of tuples: [[grad_q, grad_q error],[intercept_q, intercept_q error],
             [grad_u, grad_u error],[intercept_u, intercept_u error]].
             For qisp = grad_q * lambda + intercept_q (and similar equation for u), where lambda is in Angstrom.
