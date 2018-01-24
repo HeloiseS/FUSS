@@ -1,5 +1,5 @@
 """
-1 - Jan - 2018 / H. F. Stevance / fstevance1@sheffield.ac.uk
+4 - Jan - 2018 / H. F. Stevance / fstevance1@sheffield.ac.uk
 
 This is the main module of FUSS. It contains general utility functions, a couple of interactive routines and
 also defines a new class: PolData, to deal with specpol data.
@@ -76,7 +76,7 @@ if sys.version_info.major < 3:
 # ################## FUNCTIONS ###################### FUNCTIONS #################### FUNCTIONS ################# #
 
 
-def get_spctr(filename, wlmin=0, wlmax=100000, err=False, scale=True, skiprows = None ):
+def get_spctr(filename, wlmin=0, wlmax=100000, err=False, scale=True, skiprows = 0 ):
     """
     Imports spectrum.
 
@@ -127,7 +127,7 @@ def get_spctr(filename, wlmin=0, wlmax=100000, err=False, scale=True, skiprows =
         return wl, f, r
 
 
-def get_pol(filename, wlmin=0, wlmax=100000, skiprows = None):
+def get_pol(filename, wlmin=0, wlmax=100000, skiprows = 0):
     """
     Imports values from polarisation files (given by the old specpol routine in datred (pre Dec 2017)).
 
@@ -192,7 +192,7 @@ def dopcor(val, z):
     return values
 
 
-def dopcor_file(filename, z):
+def dopcor_file(filename, z, dataframe=True):
     """
     Doppler Correction of data from a file (filename), into another file (output)
 
@@ -204,29 +204,35 @@ def dopcor_file(filename, z):
         Redshift
 
     """
+    if dataframe is False:
+        output = 'dc_' + filename
+        os.system('cp -i ' + filename + ' ' + output)
+        f = file(output, 'r+')
 
-    output = 'dc_' + filename
-    os.system('cp -i ' + filename + ' ' + output)
-    f = file(output, 'r+')
+        dopcor = []
+        for line in f:
+            columns = line.split()
+            wl = float(columns[0])
+            wl_dopcor = (wl) - (wl * z)
+            dopcor.append(wl_dopcor)
+        f.close()
 
-    dopcor = []
-    for line in f:
-        columns = line.split()
-        wl = float(columns[0])
-        wl_dopcor = (wl) - (wl * z)
-        dopcor.append(wl_dopcor)
-    f.close()
+        f0 = file(filename, 'r')
+        f = file(output, 'w')
+        i = 0
+        for line in f0:
+            columns = line.split()
+            n_line = line.replace(columns[0], str(dopcor[i]))
+            f.write(n_line)
+            i = i + 1
 
-    f0 = file(filename, 'r')
-    f = file(output, 'w')
-    i = 0
-    for line in f0:
-        columns = line.split()
-        n_line = line.replace(columns[0], str(dopcor[i]))
-        f.write(n_line)
-        i = i + 1
+        print(output + ' created')
 
-    print(output + ' created')
+    elif dataframe is True:
+        data = pd.read_csv(filename, sep = '\t')
+        data['wl'] -= data['wl']*z
+        data.to_csv('dc_'+filename, sep = '\t', index=False)
+        print('dc_'+filename + ' created')
 
 def ylim_def(wl, f, wlmin=4500, wlmax=9500):
     """

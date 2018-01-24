@@ -1,5 +1,5 @@
 """
-1 - Jan - 2018 / H. F. Stevance / fstevance1@sheffield.ac.uk
+2 - Jan - 2018 / H. F. Stevance / fstevance1@sheffield.ac.uk
 
 datred.py is a module created as part of the FUSS package to help with the data reduction of spectropolarimetric
 data (at the present time only used with FORS2 data)
