@@ -346,6 +346,8 @@ def pol_ang(q, u, q_r=None, u_r=None):
         if q_r is not None and u_r is not None:
             theta_r = 0.5 * np.sqrt(((u_r / u) ** 2 + (q_r / q) ** 2) * (1 / (1 + (u / q) ** 2)) ** 2)
             theta_r = (theta_r * 180.0) / m.pi
+            if theta_r > 180:
+                theta_r = 180
             return theta, theta_r
         else:
             return theta
