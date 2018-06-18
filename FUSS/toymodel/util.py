@@ -5,9 +5,9 @@ import yaml
 import pandas as pd
 
 
-def target_values(q_data, u_data, delta_q_data, delta_u_data, ksi_q, ksi_u, del$
+def target_values(q_data, u_data, delta_q_data, delta_u_data, ksi_q, ksi_u, delta_ksi_q, delta_ksi_u):
     """
-    Finds the target values to put into a model given the target data values an$
+    Finds the target values to put into a model given the target data values and the offsets of a particular model. 
     """
     target_q = q_data + ksi_q
     target_u = u_data + ksi_u 
@@ -16,6 +16,7 @@ def target_values(q_data, u_data, delta_q_data, delta_u_data, ksi_q, ksi_u, del$
     delta_target_u = np.sqrt(delta_u_data**2 + delta_ksi_u**2)
 
     return target_q, target_u, delta_target_q, delta_target_u
+
     
 
 def offsets( q_cont, u_cont, delta_q_cont, delta_u_cont, q_model, u_model):
