@@ -5,6 +5,35 @@ import yaml
 import pandas as pd
 
 
+def target_values(q_data, u_data, delta_q_data, delta_u_data, ksi_q, ksi_u, del$
+    """
+    Finds the target values to put into a model given the target data values an$
+    """
+    target_q = q_data + ksi_q
+    target_u = u_data + ksi_u 
+
+    delta_target_q = np.sqrt(delta_q_data**2 + delta_ksi_q**2)
+    delta_target_u = np.sqrt(delta_u_data**2 + delta_ksi_u**2)
+
+    return target_q, target_u, delta_target_q, delta_target_u
+    
+
+def offsets( q_cont, u_cont, delta_q_cont, delta_u_cont, q_model, u_model):
+    """
+    Offset between the target data continuum q and u and a given model.    
+    This offset is applied to target data values before they are modelled. 
+    """
+    ksi_q = q_model - q_cont
+    ksi_u = u_model - u_cont
+
+    delta_ksi_q = delta_q_cont
+    delta_ksi_u = delta_u_cont
+
+
+    return ksi_q, ksi_u, delta_ksi_q, delta_ksi_u
+
+
+
 def lnlikelihood(model, data, error): # Tested
     """
     Find the Log likelihood given gaussian data

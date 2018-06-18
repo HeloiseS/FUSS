@@ -796,7 +796,7 @@ class PolData(object):
                ls=14, isp=False, wlrest=None, colorbar=True, colorbar_labelsize=14, size_clbar=0.05, line_color=None,
                marker='.', lambda_xshift=1.7, fit=True,
                qlab_vis=True, ulab_vis=True,
-               qticks_vis=True, uticks_vis=True):
+               qticks_vis=True, uticks_vis=True, cmap='jet'):
         # TODO: anyway to use *args here? how does that even work?
         """
         Plots the QU plane corresponding to the imported data.
@@ -850,6 +850,9 @@ class PolData(object):
             If False, all q tick labels are invisible. Default is True.
         uticks_vis : bool, optional
             If False, all u tick labels are invisible. Default is True.
+        cmap : str, optional
+            A valid matplotlib colormap. Default = jet 
+
 
         Returns
         ------
@@ -892,7 +895,7 @@ class PolData(object):
         ur_crop = self.ur[cond]
 
         # #################### CREATING THE PLOT ########################
-        plt.set_cmap('jet') 
+        plt.set_cmap(cmap) 
         if wlrest is None:
             # Defining the min and max wavelength, which are going to be the beginning and end of the colour map
             wlmin = min(wl_crop)
