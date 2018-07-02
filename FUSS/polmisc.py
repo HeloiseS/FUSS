@@ -595,7 +595,7 @@ class PolData(object):
             print(" ==== PolData - instance: " + self.name + " ====")
             print("Flux spectrum added.")
         except ValueError as error:
-            print("ValueError: "str(error) + "\n /!\ This function uses np.loadtxt, if there are rows of text at the top of your file that need to be skipped add the argument skiprows = [number of rows to skip]")
+            print("ValueError: "+str(error) + "\n /!\ This function uses np.loadtxt, if there are rows of text at the top of your file that need to be skipped add the argument skiprows = [number of rows to skip]")
 
     def flu_n_pol(self, save=False):
         """
