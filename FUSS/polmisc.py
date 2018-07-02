@@ -96,6 +96,8 @@ def get_spctr(filename, wlmin=0, wlmax=100000, err=False, scale=True, skiprows =
         If there is an error column, set to True. Default is False.
     scale : bool, optional
         Default is True. Multiplies the spectrum (and error) by the median values of the flux.
+    skiprows : int, optional
+        Default is 0, number of rows to skip
 
     Returns
     -------
@@ -523,12 +525,12 @@ class PolData(object):
             except ValueError:
                 # This we got the new pol data files for datred (pandas data frame to tab separated file with col names)
                 poldf = pd.read_csv(poldata, sep='\t')
-                mask = (poldf['wl'].values > wlmin) & (poldf['wl'].values < wlmax)
+                mask = (poldf.iloc[:,0].values > wlmin) & (poldf.iloc[:,0].values < wlmax)
 
-                self.wlp, self.p, self.pr = poldf['wl'].values[mask],  poldf['p'].values[mask],  poldf['p_r'].values[mask]
-                self.q, self.qr = poldf['q'].values[mask],  poldf['q_r'].values[mask]
-                self.u, self.ur = poldf['u'].values[mask],  poldf['u_r'].values[mask]
-                self.a, self.ar = poldf['theta'].values[mask],  poldf['theta_r'].values[mask]
+                self.wlp, self.p, self.pr = poldf.iloc[:,0].values[mask],  poldf.iloc[:,1].values[mask],  poldf.iloc[:,2].values[mask]
+                self.q, self.qr = poldf.iloc[:,3].values[mask],  poldf.iloc[:,4].values[mask]
+                self.u, self.ur = poldf.iloc[:,5].values[mask],  poldf.iloc[:,6].values[mask]
+                self.a, self.ar = poldf.iloc[:,7].values[mask],  poldf.iloc[:,8].values[mask]
 
         else:
             pol0 = poldata
@@ -564,7 +566,7 @@ class PolData(object):
         print("Polarisation data initialised. If you want to add Stokes I use add_flux_data(). " \
               "To find ISP use find_isp(). \n")
 
-    def add_flux_data(self, filename, wlmin=None, wlmax=1000000, err=False, scale=False):
+    def add_flux_data(self, filename, wlmin=None, wlmax=1000000, err=False, scale=False, skiprows = 0):
         """
         Adds flux spectrum data attributes to the PolData.
 
@@ -578,15 +580,22 @@ class PolData(object):
             Maximum wavelength cut off
         err : bool
             If false, only imports wavelength and flux, not the error on the flux. Default = False.
+        skiprows : int, optional
+            efault is 0, number of rows to skip
+            
         """
-        flux = get_spctr(filename, wlmin=wlmin, wlmax=wlmax, scale=scale)
-        self.wlf = flux[0]
-        self.f = flux[1]
-        if err is True:
-            self.fr = flux[2]
 
-        print(" ==== PolData - instance: " + self.name + " ====")
-        print("Flux spectrum added.")
+        try:
+            flux = get_spctr(filename, wlmin=wlmin, wlmax=wlmax, scale=scale, skiprows = skiprows)
+            self.wlf = flux[0]
+            self.f = flux[1]
+            if err is True:
+                self.fr = flux[2]
+
+            print(" ==== PolData - instance: " + self.name + " ====")
+            print("Flux spectrum added.")
+        except ValueError as error:
+            print("ValueError: "str(error) + "\n /!\ This function uses np.loadtxt, if there are rows of text at the top of your file that need to be skipped add the argument skiprows = [number of rows to skip]")
 
     def flu_n_pol(self, save=False):
         """
