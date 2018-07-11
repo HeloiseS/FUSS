@@ -232,9 +232,12 @@ def dopcor_file(filename, z, dataframe=True):
 
     elif dataframe is True:
         data = pd.read_csv(filename, sep = '\t')
-        data['wl'] -= data['wl']*z
+        #data['wl'] -= data['wl']*z
+        data.iloc[:,0] = data.iloc[:,0].values - data.iloc[:,0].values*z
         data.to_csv('dc_'+filename, sep = '\t', index=False)
         print('dc_'+filename + ' created')
+        
+        
 
 def ylim_def(wl, f, wlmin=4500, wlmax=9500):
     """
