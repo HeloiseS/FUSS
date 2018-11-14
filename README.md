@@ -11,7 +11,7 @@ For documentation, see our wiki, or the pdf in the docs/FUSS folder.
 
 ## Installation
 ### Python
-`pip install fussy`
+`pip install fusspy`
 
 ### IRAF scripts
 
@@ -24,3 +24,4 @@ You will also have to edit the path to the python scripts in `arc_apertures.cl`,
 ## Licensed
 
 This project is Copyright (c) H. F. Stevance and licensed under the terms of the MIT license. See the licenses folder for more information.
+
