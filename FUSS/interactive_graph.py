@@ -81,7 +81,7 @@ class DataRange():
 
 def onclick(event):
     """
-    Takes in the  x coordinates of the point where the mouse has been clicked.
+    Takes in the  x coordinates of the point where the mouse has been clicked and puts it into lists 2 by 2
     Notes
     -----
     Requires ranges_graph (list), num (int) and coords (list), which are defined in def_ranges().
@@ -166,3 +166,59 @@ def def_ranges(fig, flux, err=False):
         ranges_data.append(DataRange(name, xdata, ydata, ydata_err))
 
     return ranges_data
+
+def onclick2(event):
+    """
+    Takes in the  x coordinates of the point where the mouse has been clicked.
+
+    Parameters
+    ----------
+    event : ?? e.g 'button_press_event'
+
+    """
+    
+    global datx
+    global coords  # stores x coordinates
+
+
+    datx = event.xdata
+    coords.append(datx)
+
+    return coords
+
+
+def def_xvals(fig, flux, err=False):
+    """
+    Retrieves xvalues on graph from user interaction with graph (mouse click) and returns the list of values.
+
+    Notes
+    -----
+    Matplotlib figure should already be given and spectrum plotted created but not shown.
+
+    Parameters
+    ----------
+    fig :
+        matplotlib figure on which graph will be shown
+    flux : array
+        Flux spectrum data. 2-3 D array. flux[0] = wavelength, flux[1] = flux values. If err=True, flux[2] = error on
+        flux[1]. Could be any 2-3 D data set.
+    err : bool, optional
+        Set to True if data has errors on y.
+
+    Returns
+    -------
+    list of DataRange objects
+
+    """
+    # need to make some variables and lists globally defined for "onclick" to be able to use them
+    global coords
+
+    coords = []
+
+
+    cid = fig.canvas.mpl_connect('button_press_event', onclick2)  # connects the button press event
+    # on the figure fig to the onclick function.
+    
+    plt.show()  # shows graph, user shuld then click on graph to define x ranges
+
+    return coords

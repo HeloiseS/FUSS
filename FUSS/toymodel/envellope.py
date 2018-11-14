@@ -168,14 +168,15 @@ class Envellope(object):
             self.photonsproba.append(proba)
             #proba=100
             if pol_cond <= proba:
-                grad = - (self.b**2 * x)/(self.a**2 * y)
+                grad = - (self.b**2 * x)/(self.a**2 * y) #polarisation tangential to the photosphere.
                 angle = m.atan(grad)*180/m.pi
                                
                 if angle < 0.0:
                     angle += 180
 
             else:
-                angle=float(uniform(0,180,size=1))
+                angle=float(uniform(0,180,size=1)) #random orientation
+
                 
             self.photonspa.append(angle)
             #### Q U ####     

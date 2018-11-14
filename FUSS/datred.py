@@ -334,7 +334,7 @@ def pol_ang(q, u, q_r=None, u_r=None):
     -------
     tuple (theta, error on theta) if errors on q and u are given.
     Only theta if errors are not given.
-
+4
     """
 
     if isinstance(q, float):
@@ -365,7 +365,10 @@ def pol_ang(q, u, q_r=None, u_r=None):
                 theta_tr = 0.5 * np.sqrt(
                         ((u_r[t] / u[t]) ** 2 + (q_r[t] / q[t]) ** 2) * (1 / (1 + (u[t] / q[t]) ** 2)) ** 2)
                 theta_tr = (theta_tr * 180.0) / m.pi
+                if theta_tr > 180:
+                    theta_tr = 180
                 theta_r = np.append(theta_r, theta_tr)
+                
 
         if q_r is not None and u_r is not None:
             return theta, theta_r

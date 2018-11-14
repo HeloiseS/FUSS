@@ -3,6 +3,9 @@ import numpy as np
 import cPickle as pickle
 import yaml 
 import pandas as pd
+from matplotlib.patches import Ellipse
+import matplotlib
+import matplotlib.pyplot as plt
 
 
 def target_values(q_data, u_data, delta_q_data, delta_u_data, ksi_q, ksi_u, delta_ksi_q, delta_ksi_u):
@@ -138,3 +141,210 @@ def list_params(lim_par1, lim_par2=None, lim_par3=None, step1=0.1, step2=0.1, st
                     params_ls.append([x, y, z])
 
     return params_ls
+
+
+class ModelGrid(object):
+    """
+    Object containing the grid of models created by our sampler. 
+    
+    Parameters
+    ----------
+    grid : str or dataframe
+        grid of models
+        
+    Notes
+    -----
+    Expected columns: [X	Y	R	Q	U	Fl/Fc	QCONT	UCONT]
+    
+    Attributes
+    ----------
+    grid : pandas.DataFrame
+        The main grid attribute. It will undergo the tranformations by the methods
+    grid_reset : pandas.DataFrame
+        Attribute to save the initial grid into so it's easy to get back to. 
+        Used by reset() to turn self.grid back to its original version
+    grid_uncrop : None or pandas Data.Frame
+        Uncropped grid (but if a continuum transformation has been applied this grid 
+        will have it too, unlike grid_reset.
+    targets : None or list or array (3 values)
+        Target values for q, u and flux ratio. 
+        None until crop_to_Xsigma() is called
+    targets_r : None or list or array (3 values)
+        Errors on the target values for q, u and flux ratio. 
+        None until crop_to_Xsigma() is called
+      
+    Methods
+    -------
+    match_obs_cont()
+    crop_to_Xsigma()
+    plot()   
+    reset()
+    uncrop()
+    
+    """
+    def __init__(self, grid):
+        """
+        Parameters
+        ----------
+        grid : str or dataframe
+            grid of models
+            
+        Notes
+        -----
+        Expected columns: [X	Y	R	Q	U	Fl/Fc	QCONT	UCONT]
+        
+        
+        """
+        # imports the main grid dataframe
+        if isinstance(grid, pd.core.frame.DataFrame): self.grid = grid
+        elif isinstance(grid, str): self.grid = pd.read_csv(grid)
+        
+        # creates the "reset" grid. Used by the method "reset"
+        self.grid_reset = self.grid
+        
+        # grid_uncrop will be set by "crop_to_Xsigma"
+        # it allows to go back to uncropped grid without reseting entierly 
+        self.grid_uncrop = None
+        
+        # will be used to store the target values of the STokes param and flux ratio
+        # and the associated errors
+        self.targets = None
+        self.targets_r = None
+ 
+    def match_obs_cont(self, cont, cont_r ):
+        """
+        Method used to transform the modelled Stokes parameters to match the observed continuum
+        
+        Parameters
+        ----------
+        cont : array, list or tuple - 2 values
+            [ observed q_cont, observed u_cont]
+        cont_r : array, list or tuple - 2 values
+            [error on  osberved q_cont, error on observed u_cont]
+        
+        """
+        ksi_q, ksi_u, delta_ksi_q, delta_ksi_u = offsets(cont[0], cont[1], cont_r[0], cont_r[1], self.grid_reset.QCONT[0], self.grid_reset.UCONT[0])
+
+        self.grid.Q, self.grid.QCONT = self.grid_reset.Q - ksi_q, self.grid_reset.QCONT - ksi_q
+        self.grid.U, self.grid.UCONT = self.grid_reset.U - ksi_u, self.grid_reset.UCONT - ksi_u
+        
+        self.grid_uncrop = self.grid
+
+    def crop_to_Xsigma(self, targets, targets_r, Xsigma = 3):  
+        """
+        Method used to crop the grid to only contain models with Stokes parameters within X sigma of the target (observed) values
+        
+        Parameters
+        ----------
+        targets : array, list or tuple - 3 values
+            [q_target, u_target, flux ratio target]
+        targets_r : array, list or tuple - 3 values
+            [error q_target, error u_target, error flux ratio target]
+        Xsigma : int or float, optional
+            Number of sigmas to use to crop. Default is 3.
+            
+        """
+        if self.grid_uncrop is None: self.grid_uncrop = self.grid
+        
+        self.targets  = [float(tar) for tar in targets] # this just to make sure I have a list of floats
+        self.targets_r = [float(tar_r) for tar_r in targets_r]
+        
+        qlim_low = self.targets[0] - Xsigma*self.targets_r[0]
+        qlim_high = self.targets[0] + Xsigma*self.targets_r[0]
+
+        ulim_low = self.targets[1] - Xsigma*self.targets_r[1]
+        ulim_high = self.targets[1] + Xsigma*self.targets_r[1]
+
+        flim_low = self.targets[2] - Xsigma*self.targets_r[2]
+        flim_high = self.targets[2] + Xsigma*self.targets_r[2]
+        
+        self.grid = self.grid_uncrop
+        self.grid = self.grid[(self.grid['Q'] < qlim_high) & (self.grid['Q'] > qlim_low) 
+                    & (self.grid['U'] > ulim_low) & (self.grid['U'] < ulim_high) 
+                    & (self.grid['Fl/Fc'] > flim_low)& (self.grid['Fl/Fc'] < flim_high)]  
+        
+        
+    def plot(self, axis_ratio,transparency=0.15, phot_color = 'grey', cmap = 'Purples', outputfile = None, skip=None, lim=[-1,1]):    
+        """
+        Plotting method to visualise absorption regions on top of photosphere
+        
+        Parameters
+        ----------
+        axis_ratio : float
+            axis ratio of the photosphere of the models in the grid
+        transparency : float, optional
+            transparency (alpha parameter) of individual absorption regions. Default = 0.15.
+        phot_color : str (matplotlib color), optional
+            color of the photosphere, Default is 'grey'
+        cmap : matplotlib color map, optional
+            colormap used to show the absorption regions, Default = 'Purples_r'
+        outputfile : str, optional
+             name of output file for the plot i fyou want to save the plot. Default is None (WILL NOT SAVE)
+        
+        """
+        cmap = plt.cm.get_cmap(cmap)
+        self.grid['Qres'] = self.targets[0] - self.grid.Q.values
+        self.grid['Ures'] = self.targets[1] - self.grid.U.values
+        self.grid['Fres'] = self.targets[2] - self.grid['Fl/Fc'].values
+        
+        self.grid['TOTres'] = abs(self.grid.Qres + self.grid.Ures + self.grid.Fres)        
+
+        sorted_df = self.grid.sort_values('TOTres', ascending=False)
+        
+        if axis_ratio > 1 : axis_ratio = 1/axis_ratio
+        
+        photosphere = Ellipse(xy=(0,0), width = 2*0.99, height=2* axis_ratio*0.99)
+        
+        fig = plt.figure(figsize=(10,10))
+        ax = fig.add_subplot(111, aspect='equal')
+        ax.add_artist(photosphere)
+        photosphere.set_facecolor(phot_color)
+        ax.set_ylim(lim)
+        ax.set_xlim(lim)
+
+
+        norm = matplotlib.colors.Normalize(vmin=sorted_df['TOTres'].min(), vmax=sorted_df['TOTres'].max())
+
+        for X, Y, R, C, i in zip(sorted_df.X, sorted_df.Y, sorted_df.R, sorted_df['TOTres'], range(len(sorted_df.Y))):
+            #print norm(C)
+            if skip == None:
+                circle = plt.Circle((X, Y), R, color=cmap(norm(C)), alpha=transparency)
+                ax.add_artist(circle)
+            elif skip != 0:
+                if i % skip == 0:
+                    circle = plt.Circle((X, Y), R, color=cmap(norm(C)), alpha=transparency)
+                    ax.add_artist(circle)
+                    
+                if i == range(len(sorted_df.Y))[0] or  i == range(len(sorted_df.Y))[-1]:
+                    circle = plt.Circle((X, Y), R, color=cmap(norm(C)), alpha=transparency)
+                    ax.add_artist(circle)
+                    
+
+        ax.axvline(0, ls='--', c='k')
+        ax.axhline(0, ls='--', c='k')
+
+        circlebest = plt.Circle((sorted_df.X.values[-1], sorted_df.Y.values[-1]), sorted_df.R.values[-1], ls='--')
+
+        ax.add_artist(circlebest)
+
+        circlebest.set_facecolor('None')
+        circlebest.set_edgecolor('k')
+        
+        if outputfile is not None:
+            plt.savefig(outputfile)
+        
+        return fig, ax
+        
+    def uncrop(self):
+        """
+        If the grid of models was cropped, reverses to uncropped grid. 
+        Will conserve any transformation of the model continuua through "mathc_obs_cont"
+        """
+        if self.grid_uncrop is not None: self.grid = self.grid_uncrop
+        
+    def reset(self):
+        """
+        Resets the grid to the version given on initialisation.
+        """
+        self.grid = self.grid_reset
+        
