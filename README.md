@@ -3,7 +3,10 @@
 [![astropy](http://img.shields.io/badge/powered%20by-AstroPy-orange.svg?style=flat)](http://www.astropy.org/)
 [![DOI](https://zenodo.org/badge/79924113.svg)](https://zenodo.org/badge/latestdoi/79924113)
 
-Our code For Use with Supernova Spectropolarimetry was used to reduce and analyse the data for our paper on SN 2014ad, see https://arxiv.org/pdf/1704.06270.pdf.
+Our code For Use with Supernova Spectropolarimetry was used to reduce and analyse the data for our papers:
+ - [The evolution of the 3D shape of the broad-lined Type Ic SN 2014ad](http://adsabs.harvard.edu/abs/2017MNRAS.469.1897S)
+ - [Probing the rotational velocity of Galactic WO stars with spectropolarimetry](http://adsabs.harvard.edu/abs/2018MNRAS.479.4535S)
+ - [The 3D shape of Type IIb SN 2011hs](http://adsabs.harvard.edu/abs/2019arXiv190107562S)
 
 If you want to use our code, or part of our code, we would be grateful if you could cite the aforementioned publication.
 
