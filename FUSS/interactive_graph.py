@@ -102,7 +102,7 @@ def onclick(event):
         # when 2 x values have been stored in coords they define a range
         # as such they are stored in ranges_graph. num is given too, this variable just numbers the ranges
         # that are in ranges_graph.
-        print coords
+        print(coords)
         ranges_graph.append([num, coords[0], coords[1]])
         num += 1
         coords = []
@@ -145,7 +145,7 @@ def def_ranges(fig, flux, err=False):
 
     plt.show()  # shows graph, user shuld then click on graph to define x ranges
 
-    print ranges_graph
+    print(ranges_graph)
 
     # the following takes the x ranges previously defined and create DataRange instances from the x, y and error
     # on y (if applicable) values for each range. These DataRange objects are then stored in ranges_data to be returned

@@ -1,6 +1,6 @@
 from __future__ import division
 import numpy as np
-import cPickle as pickle
+import pickle
 import yaml 
 import pandas as pd
 from matplotlib.patches import Ellipse

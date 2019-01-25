@@ -34,6 +34,7 @@ func(args): lienar 2D function
 odr_fit(args): fits 2D data with a line using Orthogonal Distance Regression 
 
 """
+from __future__ import print_function
 from __future__ import division
 import numpy as np
 import math as m
@@ -139,8 +140,8 @@ def cov_mat(q, u, q_r, u_r):
         els[coor_ls.index(coor)] = cov_el(j, k, q, u, q_r, u_r)
 
     cov_matrix=np.array([[els[0],els[1]],[els[2],els[3]]])
-    print "Covariance Matrix:"
-    print cov_matrix,'\n'
+    print("Covariance Matrix:")
+    print(cov_matrix,'\n')
     return cov_matrix
     
 # ############################ Principal Components analyis ################################### #
@@ -237,9 +238,9 @@ def odr_fit(x, xr, y, yr):
     odr.set_job(fit_type=0)  # fit_type = 0 => explicit ODR.
     output = odr.run()
 
-    print "Line = a*x + b"
-    print "a = " + str(output.beta[1]) + " +/- " + str(output.sd_beta[1])
-    print "b = " + str(output.beta[0]) + " +/- " + str(output.sd_beta[0]) + "\n"
+    print("Line = a*x + b")
+    print("a = " + str(output.beta[1]) + " +/- " + str(output.sd_beta[1]))
+    print("b = " + str(output.beta[0]) + " +/- " + str(output.sd_beta[0]) + "\n")
 
     grad = output.beta[1]
     grad_r = output.sd_beta[1]

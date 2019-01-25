@@ -12,7 +12,7 @@ from __future__ import division
 import matplotlib.pyplot as plt
 import numpy as np
 import FUSS as F
-import interactive_graph as ig
+import FUSS.interactive_graph as ig
 from FUSS import statistics as Fstat
 import math as m
 from scipy import special as special

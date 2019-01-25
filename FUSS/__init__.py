@@ -12,6 +12,6 @@ Available modules:
 from ._astropy_init import *
 
 if not _ASTROPY_SETUP_:
-    from polmisc import *
+    from .polmisc import *
 
 
