@@ -7,19 +7,21 @@ All have unit test except debias() and from_range() as they are now obsolete to 
 on writing them)
 """
 
-if sys.version_info.major < 3:
-    range = xrange
-    input = raw_input
-
 from __future__ import print_function
 from __future__ import division
 import matplotlib.pyplot as plt
 import numpy as np
-import FUSS as F
-import FUSS.interactive_graph as ig
+from FUSS import polmisc as F
+from FUSS import interactive_graph as ig
 from FUSS import statistics as Fstat
 import math as m
 from scipy import special as special
+import sys
+
+if sys.version_info.major < 3:
+    range = xrange
+    input = raw_input
+
 
 ## This technique didn't work. Too reliant on user input
 def from_emline(filename_pol, filename_spctr, wlmin=4400, cont2ranges = False):

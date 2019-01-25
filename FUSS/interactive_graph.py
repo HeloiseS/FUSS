@@ -1,7 +1,7 @@
 import matplotlib.pyplot as plt
 import numpy as np
 import FUSS as F
-
+import sys
 
 if sys.version_info.major < 3:
     range = xrange

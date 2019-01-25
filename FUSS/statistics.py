@@ -40,7 +40,7 @@ import numpy as np
 import math as m
 from matplotlib.patches import Ellipse
 from scipy.odr import ODR, Model, Data, RealData, odr, Output
-
+import sys
 
 if sys.version_info.major < 3:
     range = xrange
