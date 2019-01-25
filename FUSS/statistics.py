@@ -42,6 +42,10 @@ from matplotlib.patches import Ellipse
 from scipy.odr import ODR, Model, Data, RealData, odr, Output
 
 
+if sys.version_info.major < 3:
+    range = xrange
+    input = raw_input
+
 # ############################# Chi Squared #################### #
 
 

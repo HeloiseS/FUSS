@@ -7,6 +7,10 @@ All have unit test except debias() and from_range() as they are now obsolete to 
 on writing them)
 """
 
+if sys.version_info.major < 3:
+    range = xrange
+    input = raw_input
+
 from __future__ import print_function
 from __future__ import division
 import matplotlib.pyplot as plt

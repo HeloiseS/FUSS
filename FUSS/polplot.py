@@ -60,6 +60,10 @@ import mpl_toolkits.axisartist.angle_helper as angle_helper
 from matplotlib.projections import PolarAxes
 from mpl_toolkits.axisartist.grid_finder import MaxNLocator, DictFormatter
 
+if sys.version_info.major < 3:
+    range = xrange
+    input = raw_input
+
 
 def axis(fig, loc=111, num_ticks=1, phot_vel=None, vel_lim=[0, 30000], ang_grid ='ul', rad_grid = 'l'):
     """

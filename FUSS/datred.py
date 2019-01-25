@@ -770,7 +770,7 @@ class SpecPol(object):
 
         angle = float(angle)
         root_list = [str(self.metadata.loc[i,"Filename"])[:-5]\
-                  for i in xrange(len(self.metadata["Filename"])) \
+                  for i in range(len(self.metadata["Filename"])) \
                   if self.metadata.loc[i, 'Flag'] == self.flag \
                   if float(self.metadata.loc[i, 'Angle']) == angle \
                     if self.metadata.loc[i, 'Pol. Type'] == poltype]
@@ -1458,7 +1458,7 @@ def mk_flx_spctr(metadata = 'metadata', fileloc='.', flag = 'tar', output = None
         output = input('What do you want to call the output file? ')
     output += ".flx"
 
-    files = [str(metadataframe.loc[i,"Filename"])[:-5] for i in xrange(len(metadataframe["Filename"])) \
+    files = [str(metadataframe.loc[i,"Filename"])[:-5] for i in range(len(metadataframe["Filename"])) \
                   if metadataframe.loc[i, 'Flag'] == flag ]
 
     file_list1 = [front+filename+"_ap1.txt" for filename in files]
@@ -1697,11 +1697,11 @@ def hwrpangles(sn_name='CCSN', zeropol_name='Zero_', polstd_name='NGC2024'):
         except OSError:
             pass
 
-        for i in xrange(len(ls_0)):
+        for i in range(len(ls_0)):
             with open(output_name + '.txt', 'a') as f:
                 f.write(str(ls_0[i]) + ' ' + str(ls_1[i]) + ' ' + str(ls_2[i]) + ' ' + str(ls_3[i]) + '\n')
             f.close()
-        for i in xrange(len(ls_v_0)):
+        for i in range(len(ls_v_0)):
             with open(output_name + '_v.txt', 'a') as fv:
                 fv.write(str(ls_v_0[i]) + ' ' + str(ls_v_1[i]) + '\n')
             fv.close()
@@ -2007,7 +2007,7 @@ def lin_specpol(oray='ap2', hwrpafile='hwrpangles.txt',
         delta_e = eq - eu
         stdv_dequ = []
         try:
-            for i in xrange(len(wl)):
+            for i in range(len(wl)):
                 if wl[i] > e_min_wl:
                     dequ = eq[i] - eu[i]
                     stdv_dequ.append(dequ)
@@ -2150,7 +2150,7 @@ def lin_specpol(oray='ap2', hwrpafile='hwrpangles.txt',
     except:
         print('kittens')
 
-    for l in xrange(len(wl)):
+    for l in range(len(wl)):
         with open(pol_file + ".pol", 'a') as pol_f:
             pol_f.write(
                     str(wl[l]) + '    ' + str(pfinal[l]) + '    ' + str(prf[l]) + '    ' + str(qf[l]) + '    ' + str(
@@ -2490,7 +2490,7 @@ def circ_specpol(oray='ap2', hwrpafile='hwrpangles_v.txt', bin_size=None, e_min_
         v = np.array([])
         v_err = np.array([])
 
-        for i in xrange(len(wl)):
+        for i in range(len(wl)):
             F = (fo[i] - fe[i]) / (fo[i] + fe[i])
             F_err = m.fabs(F) * np.sqrt(
                     ((fo_err[i] ** 2) + (fe_err[i] ** 2)) * ((1 / (fo[i] - fe[i]) ** 2) + (1 / (fo[i] + fe[i]) ** 2)))
@@ -2526,7 +2526,7 @@ def circ_specpol(oray='ap2', hwrpafile='hwrpangles_v.txt', bin_size=None, e_min_
         v_err = []
         eps = np.array([])
 
-        for i in xrange(len(v0)):
+        for i in range(len(v0)):
             v_i = 0.5 * (v1[i] - v0[i])  # v1 is 45 and v0 is -45 here
             eps_el = 0.5 * (v1[i] + v0[i])
             eps = np.append(eps, eps_el * 100)
@@ -2562,7 +2562,7 @@ def circ_specpol(oray='ap2', hwrpafile='hwrpangles_v.txt', bin_size=None, e_min_
         """
         num_to_sum = []
         den_to_sum = []
-        for i in xrange(len(values)):
+        for i in range(len(values)):
             numerator = values[i] / (err[i] * err[i])
             denominator = 1 / (err[i] * err[i])
             num_to_sum.append(numerator)
@@ -2693,7 +2693,7 @@ def circ_specpol(oray='ap2', hwrpafile='hwrpangles_v.txt', bin_size=None, e_min_
         os.remove(pol_file + '.pol')
     except:
         print('kittens')
-    for l in xrange(len(bin_wl)):
+    for l in range(len(bin_wl)):
         with open(pol_file + '.pol', 'a') as pol_f:
             pol_f.write(str(bin_wl[l]) + '    ' + str(vf[l]) + '    ' + str(vf_err[l]) + '\n')
 
@@ -3013,7 +3013,7 @@ def flux_spectrum():
             flux_err.append(f)
             i = i + 1
 
-    for x in xrange(len(flux[:][0])):
+    for x in range(len(flux[:][0])):
         if x == 0:
             try:
                 os.remove(output)
@@ -3021,7 +3021,7 @@ def flux_spectrum():
                 print("kittens")
         sum_flux = 0
         error_sqrd = 0
-        for i in xrange(len(flux)):
+        for i in range(len(flux)):
             if i == 0:
                 wl = flux[i][x]
             else:

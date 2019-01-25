@@ -248,7 +248,7 @@ def ylim_def(wl, f, wlmin=4500, wlmax=9500):
 
     fmax = -100000
     fmin = 1000
-    for i in xrange(len(wl)):
+    for i in range(len(wl)):
         if wl[i] < wlmax and wl[i] > wlmin:
             if f[i] < fmin:
                 fmin = f[i]
@@ -516,7 +516,7 @@ class PolData(object):
         1D array containing the error on the polarisation in each bin BEFORE ISP REMOVAL.
     """
 
-    def __init__(self, poldata, name=' ', wlmin=None, wlmax=1000000):
+    def __init__(self, poldata, name=' ', wlmin=0, wlmax=1000000):
 
         if type(poldata) is str:
             try:
@@ -569,7 +569,7 @@ class PolData(object):
         print("Polarisation data initialised. If you want to add Stokes I use add_flux_data(). " \
               "To find ISP use find_isp(). \n")
 
-    def add_flux_data(self, filename, wlmin=None, wlmax=1000000, err=False, scale=False, skiprows = 0):
+    def add_flux_data(self, filename, wlmin=0, wlmax=1000000, err=False, scale=False, skiprows = 0):
         """
         Adds flux spectrum data attributes to the PolData.
 
@@ -803,7 +803,7 @@ class PolData(object):
         self.a = new_stokes[7]
         self.ar = new_stokes[8]
 
-    def qu_plt(self, subplot_loc=111, wlmin=None, wlmax=100000,
+    def qu_plt(self, subplot_loc=111, wlmin=0, wlmax=100000,
                qlim=[-3.0, 3.0], ulim=[-3.0, 3.0], textloc=[-2.7, -2.7], cisp='k', fs=16,
                ls=14, isp=False, wlrest=None, colorbar=True, colorbar_labelsize=14, size_clbar=0.05, line_color=None,
                marker='.', lambda_xshift=1.7, fit=True,
@@ -898,7 +898,7 @@ class PolData(object):
         if fit is True:
             qu.plot(q_n, u_n, 'k--', linewidth=2, zorder=1000)
             # the zorder is high to sit on top of the scatter created belox
-
+        print(wlmin, wlmax)
         cond = (self.wlp > wlmin) & (self.wlp < wlmax)
         wl_crop = self.wlp[cond]
         q_crop = self.q[cond]
@@ -921,7 +921,7 @@ class PolData(object):
             vel = np.array([])
             c = 299792.0
 
-            for i in xrange(len(wl_crop)):
+            for i in range(len(wl_crop)):
                 v = c * ((wl_crop[i] - wlrest) / wlrest)
                 vel = np.append(vel, v)
 

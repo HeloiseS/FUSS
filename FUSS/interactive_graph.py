@@ -3,6 +3,11 @@ import numpy as np
 import FUSS as F
 
 
+if sys.version_info.major < 3:
+    range = xrange
+    input = raw_input
+
+
 class DataRange():
     """
     I use this class to store data within a range.
