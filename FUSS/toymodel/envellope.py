@@ -14,7 +14,7 @@ from astropy.modeling import models
 from time import time
 import progressbar
 from FUSS.datred import pol_deg
-import cPickle as pickle
+import pickle
 
 import warnings
 
@@ -155,8 +155,8 @@ class Envellope(object):
             try:
                 self.photonsi.append(1-k*(1-np.sqrt(1-((r**2)/(R**2)))))
             except RuntimeWarning:
-                print "Bad value in the sqrt, intensity set to 0. You've been warned"
-                print self.photonsR, self.photonsr
+                print("Bad value in the sqrt, intensity set to 0. You've been warned")
+                print(self.photonsR, self.photonsr)
                 self.photonsi.append(0)
 
         self._calc_pol()
@@ -202,7 +202,7 @@ class Envellope(object):
         self.photonsq=list(compress(self.photonsq,self.mask))
         self.photonsu=list(compress(self.photonsu,self.mask))
 
-    def absorbing_ellipse(self, absorb_a, absorb_b, (center), angle):
+    def absorbing_ellipse(self, absorb_a, absorb_b, center, angle):
         self.absorb_a = absorb_a
         self.absorb_b = absorb_b
         self.centerx = center[0]
@@ -257,7 +257,7 @@ class Envellope(object):
 
 def pickle_phot(order_mag_photon, ptpl, semi_axes, num_iteration = 0): # Tested
     start = time()
-    print "\nRUNNING... \n"
+    print("\nRUNNING... \n")
     i=0
     if order_mag_photon > 10:
         return "This order of magnitude is very big. If you are sure you want to do this, change the code."
@@ -266,7 +266,7 @@ def pickle_phot(order_mag_photon, ptpl, semi_axes, num_iteration = 0): # Tested
     semi_major, semi_minor = semi_axes
     axis_ratio = semi_minor / semi_major
 
-    print "\n PTPL ", ptpl, "/ semi-major axis =",semi_major,"/ semi-minor axis =", semi_minor,"\n"
+    print("\n PTPL ", ptpl, "/ semi-major axis =",semi_major,"/ semi-minor axis =", semi_minor,"\n")
     q_ls=[]
     u_ls=[]
     theta_ls=[]
@@ -274,15 +274,15 @@ def pickle_phot(order_mag_photon, ptpl, semi_axes, num_iteration = 0): # Tested
     while i < num_iteration+1:
         bar.update(i)
         photosphere = Envellope(semi_major,semi_minor,num_photon,ptpl)
-        print "Made the photosphere, now need to pickle it"
+        print("Made the photosphere, now need to pickle it")
 
         q = np.average(photosphere.photonsq,
                         weights= photosphere.photonsi)
 
         u = np.average(photosphere.photonsu,
                         weights = photosphere.photonsi)
-        print "Q = ",q,"/ U = ", u
-        print "Theta = ", 0.5*m.atan2(u,q)*180/m.pi
+        print("Q = ",q,"/ U = ", u)
+        print("Theta = ", 0.5*m.atan2(u,q)*180/m.pi)
         q_ls.append(q)
         u_ls.append(u)
         theta_ls.append(0.5*m.atan2(u,q)*180/m.pi)

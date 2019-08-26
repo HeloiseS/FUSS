@@ -194,7 +194,7 @@ def dopcor(val, z):
     return values
 
 
-def dopcor_file(filename, z, dataframe=True):
+def dopcor_file(filename, z, dataframe=True, sep='\t'):
     """
     Doppler Correction of data from a file (filename), into another file (output)
 
@@ -231,7 +231,7 @@ def dopcor_file(filename, z, dataframe=True):
         print(output + ' created')
 
     elif dataframe is True:
-        data = pd.read_csv(filename, sep = '\t')
+        data = pd.read_csv(filename, sep = sep)
         #data['wl'] -= data['wl']*z
         data.iloc[:,0] = data.iloc[:,0].values - data.iloc[:,0].values*z
         data.to_csv('dc_'+filename, sep = '\t', index=False)

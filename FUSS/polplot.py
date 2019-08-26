@@ -155,7 +155,7 @@ def axis(fig, loc=111, num_ticks=1, phot_vel=None, vel_lim=[0, 30000], ang_grid 
     ax1.axis["top"].label.set_axis_direction("top")
     ax1.axis["left"].label.set_text("km/s")
     ax1.axis["left"].set_axis_direction("right")
-    ax1.axis["top"].label.set_text(ur"$\theta$")
+    ax1.axis["top"].label.set_text(r"$\theta$")
 
     # Creates a parasite axes whatever that is, but we need it.
     aux_ax = ax1.get_aux_axes(tr)
